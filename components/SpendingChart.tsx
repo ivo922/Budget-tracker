@@ -4,6 +4,7 @@ import { BarChart } from 'react-native-gifted-charts';
 import { Text, useTheme } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { CategorySpending } from '@/lib/db/queries';
+import { BORDER_RADIUS } from '@/lib/layout';
 
 type Props = {
   data: CategorySpending[];
@@ -56,5 +57,5 @@ export function SpendingChart({ data, onBarPress }: Props) {
 const styles = StyleSheet.create({
   container: { paddingVertical: 8, overflow: 'hidden' },
   empty: { padding: 24, alignItems: 'center' },
-  tooltip: { padding: 8, borderRadius: 8, elevation: 2 },
+  tooltip: { padding: 8, borderRadius: BORDER_RADIUS, elevation: 2 },
 });

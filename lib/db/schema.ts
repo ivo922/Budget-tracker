@@ -17,6 +17,15 @@ export const categories = sqliteTable('categories', {
   sortOrder: integer('sort_order').notNull().default(0),
 });
 
+export const budgets = sqliteTable('budgets', {
+  id: text('id').primaryKey(),
+  categoryId: text('category_id').notNull(),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(),
+  plannedAmount: real('planned_amount').notNull(),
+  createdAt: integer('created_at').notNull(),
+});
+
 export const goals = sqliteTable('goals', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -45,11 +54,14 @@ export const transactions = sqliteTable('transactions', {
   createdAt: integer('created_at').notNull(),
 });
 
+export type Budget = typeof budgets.$inferSelect;
+export type NewBudget = typeof budgets.$inferInsert;
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 export type Goal = typeof goals.$inferSelect;
+export type NewGoal = typeof goals.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
 export type TransactionType = 'income' | 'expense' | 'transfer';

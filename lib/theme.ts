@@ -15,7 +15,7 @@ const fontConfig = { fontFamily: 'System' };
 function buildTheme(base: MD3Theme, colors: AppPalette): AppTheme {
   return {
     ...base,
-    roundness: 12,
+    roundness: 20,
     fonts: configureFonts({ config: fontConfig }),
     colors: {
       ...base.colors,

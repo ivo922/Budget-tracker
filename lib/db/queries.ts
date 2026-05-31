@@ -15,14 +15,18 @@ import {
 import { getDb } from './index';
 import {
   accounts,
+  budgets,
   categories,
   goals,
   transactions,
   type Account,
+  type Budget,
   type Category,
   type Goal,
   type NewAccount,
+  type NewBudget,
   type NewCategory,
+  type NewGoal,
   type NewTransaction,
   type Transaction,
   type TransactionType,
@@ -56,6 +60,20 @@ export type GoalProgress = {
   progress: number;
   remaining: number;
   percent: number;
+};
+
+export type BudgetVsActualItem = {
+  categoryId: string;
+  categoryName: string;
+  color: string;
+  planned: number;
+  spent: number;
+};
+
+export type BudgetVsActual = {
+  totalPlanned: number;
+  totalSpent: number;
+  items: BudgetVsActualItem[];
 };
 
 export async function getAccounts(): Promise<Account[]> {
@@ -246,6 +264,7 @@ export async function createTransaction(
     ...data,
   };
   await db.insert(transactions).values(row);
+  if (row.goalId) await maybeCompleteGoal(row.goalId);
   return row as Transaction;
 }
 
@@ -255,6 +274,7 @@ export async function updateTransaction(
 ): Promise<void> {
   const db = getDb();
   await db.update(transactions).set(data).where(eq(transactions.id, id));
+  if (data.goalId) await maybeCompleteGoal(data.goalId);
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
@@ -382,10 +402,16 @@ export async function countTransactionsForCategory(categoryId: string): Promise<
   return Number(row?.count ?? 0);
 }
 
-// v2 stubs — schema ready, UI deferred
-export async function getGoals(): Promise<Goal[]> {
+export async function getGoals(status?: Goal['status']): Promise<Goal[]> {
   const db = getDb();
+  if (status) {
+    return db.select().from(goals).where(eq(goals.status, status)).orderBy(desc(goals.createdAt));
+  }
   return db.select().from(goals).orderBy(desc(goals.createdAt));
+}
+
+export async function getActiveGoals(): Promise<Goal[]> {
+  return getGoals('active');
 }
 
 export async function getGoalProgress(goalId: string): Promise<GoalProgress | null> {
@@ -404,4 +430,129 @@ export async function getGoalProgress(goalId: string): Promise<GoalProgress | nu
   const percent = goal.targetAmount > 0 ? Math.min(100, (progress / goal.targetAmount) * 100) : 0;
 
   return { goal, progress, remaining, percent };
+}
+
+export async function getGoalsWithProgress(): Promise<GoalProgress[]> {
+  const rows = await getGoals();
+  const results = await Promise.all(rows.map((g) => getGoalProgress(g.id)));
+  return results.filter((r): r is GoalProgress => r !== null);
+}
+
+export async function createGoal(data: Omit<NewGoal, 'id' | 'createdAt' | 'status'>): Promise<Goal> {
+  const db = getDb();
+  const row: NewGoal = {
+    id: Crypto.randomUUID(),
+    createdAt: Date.now(),
+    status: 'active',
+    ...data,
+  };
+  await db.insert(goals).values(row);
+  return row as Goal;
+}
+
+export async function updateGoal(
+  id: string,
+  data: Partial<Omit<NewGoal, 'id' | 'createdAt'>>,
+): Promise<void> {
+  const db = getDb();
+  await db.update(goals).set(data).where(eq(goals.id, id));
+}
+
+export async function deleteGoal(id: string): Promise<void> {
+  const db = getDb();
+  await db.update(transactions).set({ goalId: null }).where(eq(transactions.goalId, id));
+  await db.delete(goals).where(eq(goals.id, id));
+}
+
+async function maybeCompleteGoal(goalId: string): Promise<void> {
+  const progress = await getGoalProgress(goalId);
+  if (!progress || progress.goal.status !== 'active') return;
+  if (progress.progress >= progress.goal.targetAmount) {
+    await updateGoal(goalId, { status: 'completed' });
+  }
+}
+
+export async function getBudgetsForMonth(year: number, month: number): Promise<Budget[]> {
+  const db = getDb();
+  return db
+    .select()
+    .from(budgets)
+    .where(and(eq(budgets.year, year), eq(budgets.month, month)))
+    .orderBy(asc(budgets.createdAt));
+}
+
+export async function upsertBudget(
+  categoryId: string,
+  year: number,
+  month: number,
+  plannedAmount: number,
+): Promise<Budget> {
+  const db = getDb();
+  const existing = await db
+    .select()
+    .from(budgets)
+    .where(
+      and(
+        eq(budgets.categoryId, categoryId),
+        eq(budgets.year, year),
+        eq(budgets.month, month),
+      ),
+    )
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(budgets)
+      .set({ plannedAmount })
+      .where(eq(budgets.id, existing[0].id));
+    return { ...existing[0], plannedAmount };
+  }
+
+  const row: NewBudget = {
+    id: Crypto.randomUUID(),
+    categoryId,
+    year,
+    month,
+    plannedAmount,
+    createdAt: Date.now(),
+  };
+  await db.insert(budgets).values(row);
+  return row as Budget;
+}
+
+export async function deleteBudget(id: string): Promise<void> {
+  const db = getDb();
+  await db.delete(budgets).where(eq(budgets.id, id));
+}
+
+export async function getBudgetVsActual(
+  year: number,
+  month: number,
+  start: number,
+  end: number,
+): Promise<BudgetVsActual> {
+  const [budgetRows, spending] = await Promise.all([
+    getBudgetsForMonth(year, month),
+    getSpendingByCategory(start, end),
+  ]);
+
+  const spentByCategory = new Map(spending.map((s) => [s.categoryId, s]));
+  const allCategories = await getCategories('expense');
+  const categoryMap = new Map(allCategories.map((c) => [c.id, c]));
+
+  const items: BudgetVsActualItem[] = budgetRows.map((b) => {
+    const cat = categoryMap.get(b.categoryId);
+    return {
+      categoryId: b.categoryId,
+      categoryName: cat?.name ?? 'Category',
+      color: cat?.color ?? '#6750A4',
+      planned: b.plannedAmount,
+      spent: spentByCategory.get(b.categoryId)?.total ?? 0,
+    };
+  });
+
+  const totalPlanned = items.reduce((s, i) => s + i.planned, 0);
+  const totalSpent = spending.reduce((s, i) => s + i.total, 0);
+
+  return { totalPlanned, totalSpent, items };
 }

@@ -40,20 +40,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="transactions"
-        options={{
-          title: 'Transactions',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="swap-vertical" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="analytics"
         options={{
           title: 'Analytics',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="chart-bar" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="goals"
+        options={{
+          title: 'Goals',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="flag-checkered" size={size} color={color} />
           ),
         }}
       />

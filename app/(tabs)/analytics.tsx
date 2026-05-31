@@ -12,6 +12,7 @@ import {
   getSpendingByCategory,
   type CategorySpending,
 } from '@/lib/db/queries';
+import { screenScrollContentNoFabStyle } from '@/lib/layout';
 
 export default function AnalyticsScreen() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function AnalyticsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={screenScrollContentNoFabStyle}>
       <PeriodSelector value={period} onChange={setPeriod} />
       <View style={styles.cards}>
         <BalanceCard label="Income" amount={summary.income} variant="income" />
@@ -81,7 +82,6 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   cards: { flexDirection: 'row', gap: 8, marginVertical: 8 },
   section: { marginTop: 16, marginBottom: 8 },

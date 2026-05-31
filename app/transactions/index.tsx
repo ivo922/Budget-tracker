@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Chip } from 'react-native-paper';
+import { SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Chip, Text } from 'react-native-paper';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { EmptyState } from '@/components/EmptyState';
 import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
@@ -11,11 +11,13 @@ import { useApp } from '@/lib/context/AppContext';
 import {
   getAccountById,
   getAccounts,
-  getCategories,
   getCategoryById,
   getTransactions,
 } from '@/lib/db/queries';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
+import { groupByMonth, monthSectionLabel } from '@/lib/groupTransactions';
+import { layoutStyles, screenListContentStyle, SCREEN_PADDING } from '@/lib/layout';
+import { useAppTheme } from '@/lib/useAppTheme';
 
 type EnrichedTx = {
   tx: Transaction;
@@ -25,10 +27,18 @@ type EnrichedTx = {
   toAccount?: Account;
 };
 
-export default function TransactionsScreen() {
+type EnrichedWithDate = EnrichedTx & { date: number };
+
+type TxSection = {
+  title: string;
+  data: EnrichedTx[];
+};
+
+export default function AllTransactionsScreen() {
   const router = useRouter();
-  const { ready } = useApp();
-  const [items, setItems] = useState<EnrichedTx[]>([]);
+  const { ready, refreshKey } = useApp();
+  const theme = useAppTheme();
+  const [sections, setSections] = useState<TxSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterAccount, setFilterAccount] = useState<string | undefined>();
   const [filterType, setFilterType] = useState<'income' | 'expense' | 'transfer' | undefined>();
@@ -50,9 +60,16 @@ export default function TransactionsScreen() {
         toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
       })),
     );
-    setItems(enriched);
+    const withDate: EnrichedWithDate[] = enriched.map((e) => ({ ...e, date: e.tx.date }));
+    const grouped = groupByMonth(withDate);
+    setSections(
+      grouped.map((g) => ({
+        title: monthSectionLabel(g.key),
+        data: g.data,
+      })),
+    );
     setLoading(false);
-  }, [filterAccount, filterType]);
+  }, [filterAccount, filterType, refreshKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -72,8 +89,8 @@ export default function TransactionsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.filters}>
+    <View style={layoutStyles.screen}>
+      <View style={layoutStyles.filtersRow}>
         <ThemedMenu
           visible={menuVisible}
           onDismiss={() => setMenuVisible(false)}
@@ -113,15 +130,27 @@ export default function TransactionsScreen() {
         ))}
       </View>
 
-      {items.length === 0 ? (
+      {sections.length === 0 ? (
         <View style={styles.emptyWrap}>
           <EmptyState title="No transactions" message="Tap + to add income, expenses, or transfers." />
         </View>
       ) : (
-        <FlatList
-          data={items}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.tx.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={screenListContentStyle}
+          stickySectionHeadersEnabled
+          renderSectionHeader={({ section: { title } }) => (
+            <Text
+              variant="titleSmall"
+              style={[
+                styles.sectionHeader,
+                { backgroundColor: theme.colors.background, color: theme.colors.onSurfaceVariant },
+              ]}
+            >
+              {title}
+            </Text>
+          )}
           renderItem={({ item }) => (
             <TransactionRow
               transaction={item.tx}
@@ -141,9 +170,7 @@ export default function TransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
-  emptyWrap: { flex: 1, paddingHorizontal: 16 },
-  list: { paddingHorizontal: 16, paddingBottom: 88 },
+  emptyWrap: { flex: 1, padding: SCREEN_PADDING },
+  sectionHeader: { paddingTop: 8, paddingBottom: 8, fontWeight: '600' },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
+import { BORDER_RADIUS } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 100,
     borderLeftWidth: 4,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 4,
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1.5,
-    borderRadius: 999,
+    borderRadius: BORDER_RADIUS,
     paddingHorizontal: 16,
     paddingVertical: 10,
     minWidth: 0,

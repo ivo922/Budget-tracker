@@ -3,39 +3,36 @@ import { SectionList, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
-  Dialog,
   IconButton,
   List,
-  Portal,
   Text,
-  TextInput,
 } from 'react-native-paper';
+import { AddCategoryForm } from '@/components/AddCategoryForm';
+import { ConfirmPopup } from '@/components/ConfirmPopup';
+import { FormPopup } from '@/components/FormPopup';
 import { useApp } from '@/lib/context/AppContext';
 import {
   countTransactionsForCategory,
-  createCategory,
   deleteCategory,
   getParentCategories,
   getSubcategories,
 } from '@/lib/db/queries';
-import type { Category, CategoryType } from '@/lib/db/schema';
-import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
-import { useAppTheme, useErrorStyle } from '@/lib/useAppTheme';
+import type { Category } from '@/lib/db/schema';
+import { BORDER_RADIUS, layoutStyles, screenListContentStyle, SCREEN_PADDING } from '@/lib/layout';
+import { useAppTheme } from '@/lib/useAppTheme';
 
 type Section = { title: string; data: Category[]; parent: Category };
 
 export default function CategoriesScreen() {
   const { ready, refresh } = useApp();
   const theme = useAppTheme();
-  const errorStyle = useErrorStyle();
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogMode, setDialogMode] = useState<'parent' | 'child'>('parent');
   const [parentForChild, setParentForChild] = useState<Category | null>(null);
-  const [name, setName] = useState('');
-  const [catType, setCatType] = useState<CategoryType>('expense');
+  const [formKey, setFormKey] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
@@ -60,32 +57,15 @@ export default function CategoriesScreen() {
   const openAddParent = () => {
     setDialogMode('parent');
     setParentForChild(null);
-    setName('');
-    setCatType('expense');
+    setFormKey((k) => k + 1);
     setDialogVisible(true);
   };
 
   const openAddChild = (parent: Category) => {
     setDialogMode('child');
     setParentForChild(parent);
-    setName('');
-    setCatType(parent.type);
+    setFormKey((k) => k + 1);
     setDialogVisible(true);
-  };
-
-  const handleCreate = async () => {
-    if (!name.trim()) return;
-    const allParents = await getParentCategories(catType);
-    await createCategory({
-      name: name.trim(),
-      type: catType,
-      color: parentForChild?.color ?? (catType === 'income' ? theme.colors.income : theme.colors.expense),
-      parentId: parentForChild?.id ?? null,
-      sortOrder: allParents.length + 1,
-    });
-    setDialogVisible(false);
-    refresh();
-    load();
   };
 
   const handleDelete = async () => {
@@ -119,87 +99,151 @@ export default function CategoriesScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Button mode="contained" onPress={openAddParent} style={styles.addBtn}>
-        Add category
-      </Button>
+    <View style={layoutStyles.screen}>
+      <View style={styles.addWrap}>
+        <Button mode="contained" onPress={openAddParent} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary}>
+          Add category
+        </Button>
+      </View>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={screenListContentStyle}
+        style={{ backgroundColor: theme.colors.background }}
         renderSectionHeader={({ section }) => (
           <List.Item
             title={section.parent.name}
             description={section.parent.type}
-            style={{ backgroundColor: theme.colors.background }}
+            style={[
+              styles.parentRow,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: section.parent.color,
+              },
+            ]}
+            contentStyle={styles.parentContent}
             titleStyle={{ color: theme.colors.onSurface }}
             descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
-            left={() => <List.Icon icon="folder" color={section.parent.color} />}
+            left={(props) => <List.Icon {...props} icon="folder" color={section.parent.color} />}
             right={() => (
-              <View style={styles.row}>
-                <IconButton icon="plus" onPress={() => openAddChild(section.parent)} />
+              <View style={styles.actionRow}>
+                <IconButton
+                  icon="plus"
+                  size={20}
+                  style={styles.actionBtn}
+                  onPress={() => openAddChild(section.parent)}
+                />
                 <IconButton
                   icon={expanded[section.parent.id] ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  style={styles.actionBtn}
                   onPress={() => toggleExpand(section.parent.id)}
                 />
-                <IconButton icon="delete" onPress={() => { setDeleteTarget(section.parent); setDeleteError(''); }} />
+                <IconButton
+                  icon="delete"
+                  size={20}
+                  style={styles.actionBtn}
+                  onPress={() => {
+                    setDeleteTarget(section.parent);
+                    setDeleteError('');
+                  }}
+                />
               </View>
             )}
           />
         )}
-        renderItem={({ item, section }) => (
+        renderItem={({ item }) => (
           <List.Item
             title={item.name}
-            style={[styles.child, { backgroundColor: theme.colors.surface }]}
-            titleStyle={{ color: theme.colors.onSurface }}
-            left={() => <List.Icon icon="label" color={item.color} />}
+            style={[styles.child, { backgroundColor: theme.colors.surfaceElevated }]}
+            contentStyle={styles.childContent}
+            titleStyle={[styles.childTitle, { color: theme.colors.onSurface }]}
+            left={(props) => <List.Icon {...props} icon="label" color={item.color} style={styles.childIcon} />}
             right={() => (
-              <IconButton icon="delete" onPress={() => { setDeleteTarget(item); setDeleteError(''); }} />
+              <IconButton
+                icon="delete"
+                size={18}
+                style={styles.actionBtn}
+                onPress={() => {
+                  setDeleteTarget(item);
+                  setDeleteError('');
+                }}
+              />
             )}
           />
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No categories yet.</Text>}
+        ListEmptyComponent={
+          <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>No categories yet.</Text>
+        }
       />
 
-      <Portal>
-        <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
-          <Dialog.Title>{dialogMode === 'parent' ? 'New category' : `Subcategory of ${parentForChild?.name}`}</Dialog.Title>
-          <Dialog.Content>
-            {dialogMode === 'parent' && (
-              <TransactionTypeSelector
-                value={catType}
-                onChange={(t) => setCatType(t as CategoryType)}
-                types={['expense', 'income']}
-              />
-            )}
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setDialogVisible(false)}>Cancel</Button>
-            <Button onPress={handleCreate}>Create</Button>
-          </Dialog.Actions>
-        </Dialog>
+      <FormPopup visible={dialogVisible} onClose={() => setDialogVisible(false)} contentKey={formKey}>
+        <AddCategoryForm
+          mode={dialogMode}
+          parent={parentForChild}
+          onClose={() => setDialogVisible(false)}
+          onCreated={() => {
+            setDialogVisible(false);
+            load();
+          }}
+        />
+      </FormPopup>
 
-        <Dialog visible={!!deleteTarget} onDismiss={() => setDeleteTarget(null)}>
-          <Dialog.Title>Delete {deleteTarget?.name}?</Dialog.Title>
-          <Dialog.Content>
-            {deleteError ? <Text style={errorStyle}>{deleteError}</Text> : <Text>This cannot be undone.</Text>}
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button textColor={theme.colors.error} onPress={handleDelete}>Delete</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <ConfirmPopup
+        visible={!!deleteTarget}
+        onClose={() => {
+          setDeleteTarget(null);
+          setDeleteError('');
+        }}
+        title={deleteTarget ? `Delete ${deleteTarget.name}?` : 'Delete category?'}
+        message={deleteError || 'This cannot be undone.'}
+        onConfirm={handleDelete}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  addBtn: { margin: 16 },
-  child: { paddingLeft: 24 },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  input: { marginTop: 12 },
+  addWrap: { paddingHorizontal: SCREEN_PADDING, paddingTop: SCREEN_PADDING, paddingBottom: 0 },
+  parentRow: {
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS,
+    marginBottom: 8,
+  },
+  parentContent: {
+    paddingLeft: SCREEN_PADDING,
+    paddingRight: 8,
+    paddingVertical: 4,
+  },
+  child: {
+    marginLeft: SCREEN_PADDING,
+    marginRight: 0,
+    marginBottom: 4,
+    borderRadius: BORDER_RADIUS,
+    minHeight: 40,
+  },
+  childContent: {
+    paddingLeft: 12,
+    paddingRight: 4,
+    paddingVertical: 0,
+  },
+  childTitle: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  childIcon: {
+    marginLeft: 0,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: -6,
+  },
+  actionBtn: {
+    margin: 0,
+    width: 32,
+    height: 32,
+  },
   empty: { textAlign: 'center', padding: 24 },
 });

@@ -2,7 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import type { TransactionType } from '@/lib/db/schema';
-import { useAppTheme, useTransactionTheme } from '@/lib/useAppTheme';
+import { BORDER_RADIUS } from '@/lib/layout';
+import { useTransactionTheme } from '@/lib/useAppTheme';
 
 type Props = {
   value: TransactionType;
@@ -52,11 +53,10 @@ function TypeOption({
 }
 
 export function TransactionTypeSelector({ value, onChange, types }: Props) {
-  const theme = useAppTheme();
   const options = types ? ALL_OPTIONS.filter((o) => types.includes(o.value)) : ALL_OPTIONS;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+    <View style={styles.container}>
       {options.map((option) => (
         <TypeOption
           key={option.value}
@@ -73,17 +73,14 @@ export function TransactionTypeSelector({ value, onChange, types }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 4,
-    gap: 4,
+    gap: 8,
   },
   option: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS,
     borderWidth: 1,
   },
 });

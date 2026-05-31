@@ -4,6 +4,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Text } from 'react-native-paper';
 import { formatCurrency, formatDateShort } from '@/lib/format';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
+import { BORDER_RADIUS } from '@/lib/layout';
 import { useAppTheme, useTransactionTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 1.5,
-    borderRadius: 16,
+    borderRadius: BORDER_RADIUS,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 8,
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: BORDER_RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     right: -1,
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: BORDER_RADIUS,
     borderWidth: 2,
   },
   body: { flex: 1, gap: 2, minWidth: 0 },

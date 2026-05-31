@@ -1,17 +1,20 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useEffect, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
-import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
+import { InlineSelect } from '@/components/InlineSelect';
+import { PopupSheet } from '@/components/PopupSheet';
 import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
 import {
   createTransaction,
   getAccounts,
+  getActiveGoals,
   getParentCategories,
   getSubcategories,
 } from '@/lib/db/queries';
-import type { Account, Category, TransactionType } from '@/lib/db/schema';
+import type { Account, Category, Goal, TransactionType } from '@/lib/db/schema';
+import { popupStyles } from '@/lib/popupStyles';
 import { useErrorStyle } from '@/lib/useAppTheme';
 
 type Props = {
@@ -36,11 +39,18 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
   const [parentCategoryId, setParentCategoryId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [error, setError] = useState('');
-  const [accountMenu, setAccountMenu] = useState(false);
-  const [fromMenu, setFromMenu] = useState(false);
-  const [toMenu, setToMenu] = useState(false);
-  const [parentMenu, setParentMenu] = useState(false);
-  const [subMenu, setSubMenu] = useState(false);
+  const [goalList, setGoalList] = useState<Goal[]>([]);
+  const [goalId, setGoalId] = useState<string | undefined>();
+  const [saving, setSaving] = useState(false);
+
+  const accountOptions = useMemo(
+    () => accounts.map((a) => ({ value: a.id, label: a.name })),
+    [accounts],
+  );
+
+  useEffect(() => {
+    getActiveGoals().then(setGoalList);
+  }, []);
 
   useEffect(() => {
     getAccounts().then((rows) => {
@@ -91,6 +101,7 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
         setError('Accounts must be different');
         return;
       }
+      setSaving(true);
       await createTransaction({
         type: 'transfer',
         amount: parsed,
@@ -111,6 +122,7 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
         setError('Select a category');
         return;
       }
+      setSaving(true);
       await createTransaction({
         type,
         amount: parsed,
@@ -118,25 +130,25 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
         categoryId,
         fromAccountId: null,
         toAccountId: null,
-        goalId: null,
+        goalId: goalId ?? null,
         note: note.trim() || null,
         date: date.getTime(),
       });
     }
 
+    setSaving(false);
     refresh();
     onSaved?.();
     onClose();
   };
 
-  const accountName = (id?: string) => accounts.find((a) => a.id === id)?.name ?? 'Select';
-
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text variant="titleMedium" style={styles.heading}>
-        Add transaction
-      </Text>
-
+    <PopupSheet
+      title="Add transaction"
+      onCancel={onClose}
+      onConfirm={handleSave}
+      confirmLoading={saving}
+    >
       <TransactionTypeSelector value={type} onChange={setType} />
 
       <TextInput
@@ -144,77 +156,54 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
         value={amount}
         onChangeText={setAmount}
         keyboardType="decimal-pad"
-        style={styles.input}
+        style={popupStyles.input}
         left={<TextInput.Affix text="$" />}
       />
 
       {type === 'transfer' ? (
         <>
-          <ThemedMenu
-            visible={fromMenu}
-            onDismiss={() => setFromMenu(false)}
-            anchor={<Button mode="outlined" onPress={() => setFromMenu(true)}>From: {accountName(fromAccountId)}</Button>}
-          >
-            {accounts.map((a) => (
-              <ThemedMenuItem key={a.id} title={a.name} onPress={() => { setFromAccountId(a.id); setFromMenu(false); }} />
-            ))}
-          </ThemedMenu>
-          <ThemedMenu
-            visible={toMenu}
-            onDismiss={() => setToMenu(false)}
-            anchor={<Button mode="outlined" onPress={() => setToMenu(true)}>To: {accountName(toAccountId)}</Button>}
-          >
-            {accounts.map((a) => (
-              <ThemedMenuItem key={a.id} title={a.name} onPress={() => { setToAccountId(a.id); setToMenu(false); }} />
-            ))}
-          </ThemedMenu>
+          <InlineSelect
+            label="From"
+            value={fromAccountId}
+            options={accountOptions}
+            onChange={(v) => setFromAccountId(v)}
+          />
+          <InlineSelect
+            label="To"
+            value={toAccountId}
+            options={accountOptions}
+            onChange={(v) => setToAccountId(v)}
+          />
         </>
       ) : (
         <>
-          <ThemedMenu
-            visible={accountMenu}
-            onDismiss={() => setAccountMenu(false)}
-            anchor={<Button mode="outlined" onPress={() => setAccountMenu(true)}>Account: {accountName(accountId)}</Button>}
-          >
-            {accounts.map((a) => (
-              <ThemedMenuItem key={a.id} title={a.name} onPress={() => { setAccountId(a.id); setAccountMenu(false); }} />
-            ))}
-          </ThemedMenu>
-          <ThemedMenu
-            visible={parentMenu}
-            onDismiss={() => setParentMenu(false)}
-            anchor={
-              <Button mode="outlined" onPress={() => setParentMenu(true)}>
-                Category: {parentCategories.find((c) => c.id === parentCategoryId)?.name ?? 'Select'}
-              </Button>
-            }
-          >
-            {parentCategories.map((c) => (
-              <ThemedMenuItem key={c.id} title={c.name} onPress={() => { setParentCategoryId(c.id); setParentMenu(false); }} />
-            ))}
-          </ThemedMenu>
-          {subcategories.length > 0 && (
-            <ThemedMenu
-              visible={subMenu}
-              onDismiss={() => setSubMenu(false)}
-              anchor={
-                <Button mode="outlined" onPress={() => setSubMenu(true)}>
-                  Subcategory: {subcategories.find((c) => c.id === categoryId)?.name ?? 'Select'}
-                </Button>
-              }
-            >
-              {subcategories.map((c) => (
-                <ThemedMenuItem key={c.id} title={c.name} onPress={() => { setCategoryId(c.id); setSubMenu(false); }} />
-              ))}
-            </ThemedMenu>
-          )}
+          <InlineSelect
+            label="Account"
+            value={accountId}
+            options={accountOptions}
+            onChange={(v) => setAccountId(v)}
+          />
+          <InlineSelect
+            label="Category"
+            value={parentCategoryId}
+            options={parentCategories.map((c) => ({ value: c.id, label: c.name }))}
+            onChange={(v) => setParentCategoryId(v)}
+          />
+          {subcategories.length > 0 ? (
+            <InlineSelect
+              label="Subcategory"
+              value={categoryId}
+              options={subcategories.map((c) => ({ value: c.id, label: c.name }))}
+              onChange={(v) => setCategoryId(v)}
+            />
+          ) : null}
         </>
       )}
 
       <Button mode="outlined" onPress={() => setShowDatePicker(true)}>
         Date: {date.toLocaleDateString()}
       </Button>
-      {showDatePicker && (
+      {showDatePicker ? (
         <DateTimePicker
           value={date}
           mode="date"
@@ -224,23 +213,21 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
             if (selected) setDate(selected);
           }}
         />
-      )}
+      ) : null}
 
-      <TextInput label="Note (optional)" value={note} onChangeText={setNote} style={styles.input} />
+      {type !== 'transfer' && goalList.length > 0 ? (
+        <InlineSelect
+          label="Goal"
+          value={goalId}
+          options={goalList.map((g) => ({ value: g.id, label: g.name }))}
+          onChange={setGoalId}
+          allowClear
+        />
+      ) : null}
+
+      <TextInput label="Note (optional)" value={note} onChangeText={setNote} style={popupStyles.input} />
 
       {error ? <Text style={errorStyle}>{error}</Text> : null}
-
-      <View style={styles.actions}>
-        <Button mode="outlined" onPress={onClose}>Cancel</Button>
-        <Button mode="contained" onPress={handleSave}>Save</Button>
-      </View>
-    </ScrollView>
+    </PopupSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12 },
-  heading: { fontWeight: '600' },
-  input: { marginTop: 4 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
-});

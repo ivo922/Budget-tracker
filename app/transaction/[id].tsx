@@ -5,11 +5,10 @@ import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
-  Dialog,
-  Portal,
   Text,
   TextInput,
 } from 'react-native-paper';
+import { ConfirmPopup } from '@/components/ConfirmPopup';
 import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
 import { useErrorStyle, useAppTheme } from '@/lib/useAppTheme';
 import { EmptyState } from '@/components/EmptyState';
@@ -18,12 +17,13 @@ import { useApp } from '@/lib/context/AppContext';
 import {
   deleteTransaction,
   getAccounts,
+  getActiveGoals,
   getParentCategories,
   getSubcategories,
   getTransactionById,
   updateTransaction,
 } from '@/lib/db/queries';
-import type { Account, Category, Transaction, TransactionType } from '@/lib/db/schema';
+import type { Account, Category, Goal, Transaction, TransactionType } from '@/lib/db/schema';
 
 export default function EditTransactionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,6 +53,13 @@ export default function EditTransactionScreen() {
   const [toMenu, setToMenu] = useState(false);
   const [parentMenu, setParentMenu] = useState(false);
   const [subMenu, setSubMenu] = useState(false);
+  const [goalList, setGoalList] = useState<Goal[]>([]);
+  const [goalId, setGoalId] = useState<string | undefined>();
+  const [goalMenu, setGoalMenu] = useState(false);
+
+  useEffect(() => {
+    getActiveGoals().then(setGoalList);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -72,6 +79,7 @@ export default function EditTransactionScreen() {
       setFromAccountId(tx.fromAccountId ?? undefined);
       setToAccountId(tx.toAccountId ?? undefined);
       setCategoryId(tx.categoryId ?? undefined);
+      setGoalId(tx.goalId ?? undefined);
       setLoading(false);
     })();
   }, [id]);
@@ -146,6 +154,7 @@ export default function EditTransactionScreen() {
         categoryId,
         fromAccountId: null,
         toAccountId: null,
+        goalId: goalId ?? null,
         note: note.trim() || null,
         date: date.getTime(),
       });
@@ -209,6 +218,22 @@ export default function EditTransactionScreen() {
         {showDatePicker && (
           <DateTimePicker value={date} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, s) => { setShowDatePicker(Platform.OS === 'ios'); if (s) setDate(s); }} />
         )}
+        {type !== 'transfer' && goalList.length > 0 ? (
+          <ThemedMenu
+            visible={goalMenu}
+            onDismiss={() => setGoalMenu(false)}
+            anchor={
+              <Button mode="outlined" onPress={() => setGoalMenu(true)}>
+                Goal: {goalList.find((g) => g.id === goalId)?.name ?? 'None'}
+              </Button>
+            }
+          >
+            <ThemedMenuItem title="None" onPress={() => { setGoalId(undefined); setGoalMenu(false); }} />
+            {goalList.map((g) => (
+              <ThemedMenuItem key={g.id} title={g.name} onPress={() => { setGoalId(g.id); setGoalMenu(false); }} />
+            ))}
+          </ThemedMenu>
+        ) : null}
         <TextInput label="Note" value={note} onChangeText={setNote} />
         {error ? <Text style={errorStyle}>{error}</Text> : null}
         <View style={styles.actions}>
@@ -216,16 +241,13 @@ export default function EditTransactionScreen() {
           <Button mode="contained" onPress={handleSave}>Save</Button>
         </View>
       </ScrollView>
-      <Portal>
-        <Dialog visible={deleteVisible} onDismiss={() => setDeleteVisible(false)}>
-          <Dialog.Title>Delete transaction?</Dialog.Title>
-          <Dialog.Content><Text>This action cannot be undone.</Text></Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setDeleteVisible(false)}>Cancel</Button>
-            <Button textColor={theme.colors.error} onPress={handleDelete}>Delete</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <ConfirmPopup
+        visible={deleteVisible}
+        onClose={() => setDeleteVisible(false)}
+        title="Delete transaction?"
+        message="This action cannot be undone."
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

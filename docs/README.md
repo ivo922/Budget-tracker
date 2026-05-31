@@ -1,5 +1,15 @@
 # Budget Tracker — Documentation
 
+## Design direction
+
+Inspired by the [Hatypo Budget - Finance App](https://dribbble.com/shots/21023422-Budget-Finance-App) shot, adopted selectively:
+
+- **In scope:** Dashboard spending donut + category breakdown, month-grouped transactions, Goals v2 UI, monthly category budgets (planned vs actual).
+- **Out of scope:** Full dark/purple re-skin, onboarding, auth/profile, merchant logos, bank linking.
+- **Stack:** Keep React Native Paper MD3 and semantic income/expense/transfer colors.
+
+---
+
 ## Project overview
 
 Budget Tracker is a **local-first** Expo mobile app. All data lives on device in SQLite. There is no authentication, backend, or cloud sync in v1.
@@ -37,11 +47,11 @@ Users can:
 | Path | Responsibility |
 |------|----------------|
 | `app/` | Screens and navigation; minimal business logic |
-| `app/(tabs)/` | Main tab screens: Dashboard, Accounts, Transactions, Analytics |
+| `app/(tabs)/` | Main tab screens: Dashboard, Accounts, Transactions, Analytics, Goals |
 | `app/transaction/` | Add and edit transaction modals |
 | `app/account/[id].tsx` | Single-account detail and transaction list |
 | `app/categories/index.tsx` | Category and subcategory management |
-| `lib/db/schema.ts` | Table definitions: accounts, categories, transactions, goals |
+| `lib/db/schema.ts` | Table definitions: accounts, categories, transactions, goals, budgets |
 | `lib/db/index.ts` | DB open, migration SQL, singleton |
 | `lib/db/queries.ts` | CRUD, balances, period aggregates, goal stubs |
 | `lib/db/seed.ts` | Default category tree on first launch |
@@ -61,7 +71,8 @@ Users can:
 ```
 accounts ──< transactions
 categories (self-referential parent_id) ──< transactions
-goals ──< transactions.goal_id (nullable, v2 UI)
+categories ──< budgets (monthly planned amounts)
+goals ──< transactions.goal_id (nullable)
 ```
 
 **Account balance** (computed):
@@ -139,19 +150,22 @@ docs/
 
 ### Out of scope (v1 UI)
 
-- Goals / loans / savings screens and transaction linking picker
 - Multi-currency
 - Cloud sync, backup, auth
-- Recurring transactions / budget limits
+- Recurring transactions
 - Receipt photos, bank import
 - Widgets / notifications
 - Loan interest / amortization
 
 ---
 
-## Future roadmap: loans & savings goals
+## Goals (loans & savings)
 
-Schema is ready in v1; UI ships in v2.
+Goals tab: create savings or loan goals, track progress bars, link transactions via goal picker on add/edit forms. Auto-completes when progress reaches target.
+
+## Monthly budgets
+
+`budgets` table stores planned expense per parent category per calendar month. Dashboard (Month period) shows planned vs actual and an editor dialog.
 
 ### `goals` table
 
@@ -165,29 +179,19 @@ Schema is ready in v1; UI ships in v2.
 | `account_id` | Optional linked account |
 | `status` | `active`, `completed`, `archived` |
 
-### Transaction linking (v2)
+### Transaction linking
 
 Nullable `transactions.goal_id`:
 
-- **Loan payment:** expense or transfer linked to loan → counts toward payoff
-- **Savings deposit:** income or transfer linked to savings → counts toward target
+- **Loan payment:** expense linked to loan → counts toward payoff
+- **Savings deposit:** income linked to savings → counts toward target
 
-**Progress** (computed):
+**Progress:** `starting_balance + SUM(linked transaction amounts)`
 
-```
-starting_balance + SUM(linked transaction amounts)
-```
+### Still planned
 
-Linked transactions still affect account balances normally; the goal link is progress tracking only.
-
-### v2 UI (planned)
-
-- Goals tab with progress bars
-- Goal picker on transaction form
-- Auto-complete when progress ≥ target
-- Loan extras: interest rate, amortization (later)
-
-Stub query helpers already exist: `getGoals()`, `getGoalProgress(goalId)`.
+- Loan interest / amortization
+- Optional `target_date` UI
 
 ---
 

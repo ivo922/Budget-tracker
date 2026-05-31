@@ -13,6 +13,8 @@ import {
 } from '@/lib/db/queries';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
+import { BORDER_RADIUS, layoutStyles, screenListContentStyle, SCREEN_PADDING } from '@/lib/layout';
+import { useAppTheme } from '@/lib/useAppTheme';
 
 export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,6 +25,7 @@ export default function AccountDetailScreen() {
   >([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const theme = useAppTheme();
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -64,19 +67,32 @@ export default function AccountDetailScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { borderLeftColor: account.color }]}>
-        <Text variant="headlineSmall">{account.name}</Text>
-        <Text variant="titleLarge" style={styles.balance}>
+    <View style={layoutStyles.screen}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderColor: account.color,
+            backgroundColor: theme.colors.surface,
+          },
+        ]}
+      >
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>
+          {account.name}
+        </Text>
+        <Text variant="titleLarge" style={[styles.balance, { color: theme.colors.onSurface }]}>
           {formatCurrency(balance)}
         </Text>
       </View>
       {transactions.length === 0 ? (
-        <EmptyState title="No transactions" message="Transactions for this account will appear here." />
+        <View style={screenListContentStyle}>
+          <EmptyState title="No transactions" message="Transactions for this account will appear here." />
+        </View>
       ) : (
         <FlatList
           data={transactions}
           keyExtractor={(item) => item.tx.id}
+          contentContainerStyle={screenListContentStyle}
           renderItem={({ item }) => (
             <TransactionRow
               transaction={item.tx}
@@ -92,8 +108,15 @@ export default function AccountDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { padding: 16, borderLeftWidth: 4, margin: 16, backgroundColor: 'rgba(0,0,0,0.03)' },
-  balance: { fontWeight: '700', marginTop: 4 },
+  header: {
+    marginHorizontal: SCREEN_PADDING,
+    marginTop: SCREEN_PADDING,
+    marginBottom: 8,
+    padding: 16,
+    borderWidth: 2,
+    borderRadius: BORDER_RADIUS,
+    gap: 4,
+  },
+  balance: { fontWeight: '700' },
 });
