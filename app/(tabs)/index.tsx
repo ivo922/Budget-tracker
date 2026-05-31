@@ -1,12 +1,14 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, FAB, Text } from 'react-native-paper';
+import { ActivityIndicator, Text } from 'react-native-paper';
+import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { BalanceCard } from '@/components/BalanceCard';
 import { EmptyState } from '@/components/EmptyState';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { TransactionRow } from '@/components/TransactionRow';
 import { useApp } from '@/lib/context/AppContext';
+import { useAppTheme } from '@/lib/useAppTheme';
 import {
   getAccountById,
   getCategoryById,
@@ -24,6 +26,7 @@ type EnrichedTx = {
 export default function DashboardScreen() {
   const router = useRouter();
   const { ready, period, periodRange, setPeriod, refreshKey } = useApp();
+  const theme = useAppTheme();
   const [summary, setSummary] = useState({ income: 0, expense: 0, net: 0 });
   const [recent, setRecent] = useState<EnrichedTx[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,13 +65,15 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <PeriodSelector value={period} onChange={setPeriod} />
-        <Text variant="labelLarge" style={styles.section}>
+        <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
           {periodRange.label}
         </Text>
         <View style={styles.cards}>
-          <BalanceCard label="Income" amount={summary.income} variant="income" />
-          <BalanceCard label="Expenses" amount={summary.expense} variant="expense" />
-          <BalanceCard label="Net" amount={summary.net} variant="net" />
+          <View style={styles.cardsRow}>
+            <BalanceCard compact label="Income" amount={summary.income} variant="income" />
+            <BalanceCard compact label="Expenses" amount={summary.expense} variant="expense" />
+          </View>
+          <BalanceCard compact fullWidth label="Net" amount={summary.net} variant="net" />
         </View>
 
         <Text variant="titleMedium" style={styles.section}>
@@ -77,18 +82,20 @@ export default function DashboardScreen() {
         {recent.length === 0 ? (
           <EmptyState title="No transactions yet" message="Tap + to add your first transaction." />
         ) : (
-          recent.map(({ tx, account, category }) => (
-            <TransactionRow
-              key={tx.id}
-              transaction={tx}
-              account={account}
-              category={category}
-              onPress={() => router.push(`/transaction/${tx.id}`)}
-            />
-          ))
+          <View style={styles.recentList}>
+            {recent.map(({ tx, account, category }) => (
+              <TransactionRow
+                key={tx.id}
+                transaction={tx}
+                account={account}
+                category={category}
+                onPress={() => router.push(`/transaction/${tx.id}`)}
+              />
+            ))}
+          </View>
         )}
       </ScrollView>
-      <FAB icon="plus" style={styles.fab} onPress={() => router.push('/transaction/add')} />
+      <AddTransactionFab />
     </View>
   );
 }
@@ -97,7 +104,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 88, gap: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  cards: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  cards: { gap: 8 },
+  cardsRow: { flexDirection: 'row', gap: 8 },
   section: { marginTop: 12, marginBottom: 4 },
-  fab: { position: 'absolute', right: 16, bottom: 16 },
+  recentList: { gap: 0 },
 });

@@ -6,13 +6,14 @@ import {
   ActivityIndicator,
   Button,
   Dialog,
-  Menu,
   Portal,
-  SegmentedButtons,
   Text,
   TextInput,
 } from 'react-native-paper';
+import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
+import { useErrorStyle, useAppTheme } from '@/lib/useAppTheme';
 import { EmptyState } from '@/components/EmptyState';
+import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
 import {
   deleteTransaction,
@@ -28,6 +29,8 @@ export default function EditTransactionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { refresh } = useApp();
+  const theme = useAppTheme();
+  const errorStyle = useErrorStyle();
   const [loading, setLoading] = useState(true);
   const [original, setOriginal] = useState<Transaction | null>(null);
   const [type, setType] = useState<TransactionType>('expense');
@@ -176,37 +179,29 @@ export default function EditTransactionScreen() {
   return (
     <>
       <ScrollView contentContainerStyle={styles.content}>
-        <SegmentedButtons
-          value={type}
-          onValueChange={(v) => setType(v as TransactionType)}
-          buttons={[
-            { value: 'income', label: 'Income' },
-            { value: 'expense', label: 'Expense' },
-            { value: 'transfer', label: 'Transfer' },
-          ]}
-        />
+        <TransactionTypeSelector value={type} onChange={setType} />
         <TextInput label="Amount" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" left={<TextInput.Affix text="$" />} />
         {type === 'transfer' ? (
           <>
-            <Menu visible={fromMenu} onDismiss={() => setFromMenu(false)} anchor={<Button mode="outlined" onPress={() => setFromMenu(true)}>From: {accountName(fromAccountId)}</Button>}>
-              {accounts.map((a) => <Menu.Item key={a.id} title={a.name} onPress={() => { setFromAccountId(a.id); setFromMenu(false); }} />)}
-            </Menu>
-            <Menu visible={toMenu} onDismiss={() => setToMenu(false)} anchor={<Button mode="outlined" onPress={() => setToMenu(true)}>To: {accountName(toAccountId)}</Button>}>
-              {accounts.map((a) => <Menu.Item key={a.id} title={a.name} onPress={() => { setToAccountId(a.id); setToMenu(false); }} />)}
-            </Menu>
+            <ThemedMenu visible={fromMenu} onDismiss={() => setFromMenu(false)} anchor={<Button mode="outlined" onPress={() => setFromMenu(true)}>From: {accountName(fromAccountId)}</Button>}>
+              {accounts.map((a) => <ThemedMenuItem key={a.id} title={a.name} onPress={() => { setFromAccountId(a.id); setFromMenu(false); }} />)}
+            </ThemedMenu>
+            <ThemedMenu visible={toMenu} onDismiss={() => setToMenu(false)} anchor={<Button mode="outlined" onPress={() => setToMenu(true)}>To: {accountName(toAccountId)}</Button>}>
+              {accounts.map((a) => <ThemedMenuItem key={a.id} title={a.name} onPress={() => { setToAccountId(a.id); setToMenu(false); }} />)}
+            </ThemedMenu>
           </>
         ) : (
           <>
-            <Menu visible={accountMenu} onDismiss={() => setAccountMenu(false)} anchor={<Button mode="outlined" onPress={() => setAccountMenu(true)}>Account: {accountName(accountId)}</Button>}>
-              {accounts.map((a) => <Menu.Item key={a.id} title={a.name} onPress={() => { setAccountId(a.id); setAccountMenu(false); }} />)}
-            </Menu>
-            <Menu visible={parentMenu} onDismiss={() => setParentMenu(false)} anchor={<Button mode="outlined" onPress={() => setParentMenu(true)}>Category: {parentCategories.find((c) => c.id === parentCategoryId)?.name ?? 'Select'}</Button>}>
-              {parentCategories.map((c) => <Menu.Item key={c.id} title={c.name} onPress={() => { setParentCategoryId(c.id); setParentMenu(false); }} />)}
-            </Menu>
+            <ThemedMenu visible={accountMenu} onDismiss={() => setAccountMenu(false)} anchor={<Button mode="outlined" onPress={() => setAccountMenu(true)}>Account: {accountName(accountId)}</Button>}>
+              {accounts.map((a) => <ThemedMenuItem key={a.id} title={a.name} onPress={() => { setAccountId(a.id); setAccountMenu(false); }} />)}
+            </ThemedMenu>
+            <ThemedMenu visible={parentMenu} onDismiss={() => setParentMenu(false)} anchor={<Button mode="outlined" onPress={() => setParentMenu(true)}>Category: {parentCategories.find((c) => c.id === parentCategoryId)?.name ?? 'Select'}</Button>}>
+              {parentCategories.map((c) => <ThemedMenuItem key={c.id} title={c.name} onPress={() => { setParentCategoryId(c.id); setParentMenu(false); }} />)}
+            </ThemedMenu>
             {subcategories.length > 0 && (
-              <Menu visible={subMenu} onDismiss={() => setSubMenu(false)} anchor={<Button mode="outlined" onPress={() => setSubMenu(true)}>Subcategory: {subcategories.find((c) => c.id === categoryId)?.name ?? 'Select'}</Button>}>
-                {subcategories.map((c) => <Menu.Item key={c.id} title={c.name} onPress={() => { setCategoryId(c.id); setSubMenu(false); }} />)}
-              </Menu>
+              <ThemedMenu visible={subMenu} onDismiss={() => setSubMenu(false)} anchor={<Button mode="outlined" onPress={() => setSubMenu(true)}>Subcategory: {subcategories.find((c) => c.id === categoryId)?.name ?? 'Select'}</Button>}>
+                {subcategories.map((c) => <ThemedMenuItem key={c.id} title={c.name} onPress={() => { setCategoryId(c.id); setSubMenu(false); }} />)}
+              </ThemedMenu>
             )}
           </>
         )}
@@ -215,9 +210,9 @@ export default function EditTransactionScreen() {
           <DateTimePicker value={date} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, s) => { setShowDatePicker(Platform.OS === 'ios'); if (s) setDate(s); }} />
         )}
         <TextInput label="Note" value={note} onChangeText={setNote} />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={errorStyle}>{error}</Text> : null}
         <View style={styles.actions}>
-          <Button mode="outlined" textColor="#C62828" onPress={() => setDeleteVisible(true)}>Delete</Button>
+          <Button mode="outlined" textColor={theme.colors.error} onPress={() => setDeleteVisible(true)}>Delete</Button>
           <Button mode="contained" onPress={handleSave}>Save</Button>
         </View>
       </ScrollView>
@@ -227,7 +222,7 @@ export default function EditTransactionScreen() {
           <Dialog.Content><Text>This action cannot be undone.</Text></Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDeleteVisible(false)}>Cancel</Button>
-            <Button textColor="#C62828" onPress={handleDelete}>Delete</Button>
+            <Button textColor={theme.colors.error} onPress={handleDelete}>Delete</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -238,6 +233,5 @@ export default function EditTransactionScreen() {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  error: { color: '#C62828' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
 });

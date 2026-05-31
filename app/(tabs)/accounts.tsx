@@ -22,12 +22,14 @@ import {
 } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
 import { formatCurrency, ACCOUNT_COLORS } from '@/lib/format';
+import { useAppTheme } from '@/lib/useAppTheme';
 
 type AccountWithBalance = Account & { balance: number };
 
 export default function AccountsScreen() {
   const router = useRouter();
   const { ready, refresh } = useApp();
+  const theme = useAppTheme();
   const [accounts, setAccounts] = useState<AccountWithBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -104,7 +106,12 @@ export default function AccountsScreen() {
         />
       )}
 
-      <FAB icon="plus" style={styles.fab} onPress={() => setDialogVisible(true)} />
+      <FAB
+        icon="plus"
+        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+        color={theme.colors.onPrimary}
+        onPress={() => setDialogVisible(true)}
+      />
 
       <Portal>
         <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
@@ -147,7 +154,7 @@ export default function AccountsScreen() {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button textColor="#C62828" onPress={handleDelete}>
+            <Button textColor={theme.colors.error} onPress={handleDelete}>
               Delete
             </Button>
           </Dialog.Actions>

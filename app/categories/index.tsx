@@ -7,7 +7,6 @@ import {
   IconButton,
   List,
   Portal,
-  SegmentedButtons,
   Text,
   TextInput,
 } from 'react-native-paper';
@@ -20,11 +19,15 @@ import {
   getSubcategories,
 } from '@/lib/db/queries';
 import type { Category, CategoryType } from '@/lib/db/schema';
+import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
+import { useAppTheme, useErrorStyle } from '@/lib/useAppTheme';
 
 type Section = { title: string; data: Category[]; parent: Category };
 
 export default function CategoriesScreen() {
   const { ready, refresh } = useApp();
+  const theme = useAppTheme();
+  const errorStyle = useErrorStyle();
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -76,7 +79,7 @@ export default function CategoriesScreen() {
     await createCategory({
       name: name.trim(),
       type: catType,
-      color: parentForChild?.color ?? '#6750A4',
+      color: parentForChild?.color ?? (catType === 'income' ? theme.colors.income : theme.colors.expense),
       parentId: parentForChild?.id ?? null,
       sortOrder: allParents.length + 1,
     });
@@ -127,6 +130,9 @@ export default function CategoriesScreen() {
           <List.Item
             title={section.parent.name}
             description={section.parent.type}
+            style={{ backgroundColor: theme.colors.background }}
+            titleStyle={{ color: theme.colors.onSurface }}
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
             left={() => <List.Icon icon="folder" color={section.parent.color} />}
             right={() => (
               <View style={styles.row}>
@@ -143,7 +149,8 @@ export default function CategoriesScreen() {
         renderItem={({ item, section }) => (
           <List.Item
             title={item.name}
-            style={styles.child}
+            style={[styles.child, { backgroundColor: theme.colors.surface }]}
+            titleStyle={{ color: theme.colors.onSurface }}
             left={() => <List.Icon icon="label" color={item.color} />}
             right={() => (
               <IconButton icon="delete" onPress={() => { setDeleteTarget(item); setDeleteError(''); }} />
@@ -158,13 +165,10 @@ export default function CategoriesScreen() {
           <Dialog.Title>{dialogMode === 'parent' ? 'New category' : `Subcategory of ${parentForChild?.name}`}</Dialog.Title>
           <Dialog.Content>
             {dialogMode === 'parent' && (
-              <SegmentedButtons
+              <TransactionTypeSelector
                 value={catType}
-                onValueChange={(v) => setCatType(v as CategoryType)}
-                buttons={[
-                  { value: 'expense', label: 'Expense' },
-                  { value: 'income', label: 'Income' },
-                ]}
+                onChange={(t) => setCatType(t as CategoryType)}
+                types={['expense', 'income']}
               />
             )}
             <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
@@ -178,11 +182,11 @@ export default function CategoriesScreen() {
         <Dialog visible={!!deleteTarget} onDismiss={() => setDeleteTarget(null)}>
           <Dialog.Title>Delete {deleteTarget?.name}?</Dialog.Title>
           <Dialog.Content>
-            {deleteError ? <Text style={styles.error}>{deleteError}</Text> : <Text>This cannot be undone.</Text>}
+            {deleteError ? <Text style={errorStyle}>{deleteError}</Text> : <Text>This cannot be undone.</Text>}
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button textColor="#C62828" onPress={handleDelete}>Delete</Button>
+            <Button textColor={theme.colors.error} onPress={handleDelete}>Delete</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -198,5 +202,4 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   input: { marginTop: 12 },
   empty: { textAlign: 'center', padding: 24 },
-  error: { color: '#C62828' },
 });

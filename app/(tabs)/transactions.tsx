@@ -1,9 +1,12 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Chip, FAB, Menu } from 'react-native-paper';
+import { ActivityIndicator, Chip } from 'react-native-paper';
+import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { EmptyState } from '@/components/EmptyState';
+import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
 import { TransactionRow } from '@/components/TransactionRow';
+import { TransactionTypeChip } from '@/components/TransactionTypeChip';
 import { useApp } from '@/lib/context/AppContext';
 import {
   getAccountById,
@@ -71,18 +74,18 @@ export default function TransactionsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.filters}>
-        <Menu
+        <ThemedMenu
           visible={menuVisible}
           onDismiss={() => setMenuVisible(false)}
           anchor={
-            <Chip icon="filter" onPress={() => setMenuVisible(true)}>
+            <Chip icon="filter" onPress={() => setMenuVisible(true)} showSelectedCheck={false}>
               {filterAccount
                 ? accounts.find((a) => a.id === filterAccount)?.name ?? 'Account'
                 : 'All accounts'}
             </Chip>
           }
         >
-          <Menu.Item
+          <ThemedMenuItem
             onPress={() => {
               setFilterAccount(undefined);
               setMenuVisible(false);
@@ -90,7 +93,7 @@ export default function TransactionsScreen() {
             title="All accounts"
           />
           {accounts.map((a) => (
-            <Menu.Item
+            <ThemedMenuItem
               key={a.id}
               onPress={() => {
                 setFilterAccount(a.id);
@@ -99,24 +102,26 @@ export default function TransactionsScreen() {
               title={a.name}
             />
           ))}
-        </Menu>
+        </ThemedMenu>
         {(['income', 'expense', 'transfer'] as const).map((t) => (
-          <Chip
+          <TransactionTypeChip
             key={t}
+            type={t}
             selected={filterType === t}
             onPress={() => setFilterType(filterType === t ? undefined : t)}
-          >
-            {t}
-          </Chip>
+          />
         ))}
       </View>
 
       {items.length === 0 ? (
-        <EmptyState title="No transactions" message="Add income, expenses, or transfers to see them here." />
+        <View style={styles.emptyWrap}>
+          <EmptyState title="No transactions" message="Tap + to add income, expenses, or transfers." />
+        </View>
       ) : (
         <FlatList
           data={items}
           keyExtractor={(item) => item.tx.id}
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <TransactionRow
               transaction={item.tx}
@@ -130,7 +135,7 @@ export default function TransactionsScreen() {
         />
       )}
 
-      <FAB icon="plus" style={styles.fab} onPress={() => router.push('/transaction/add')} />
+      <AddTransactionFab />
     </View>
   );
 }
@@ -138,6 +143,7 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 },
-  fab: { position: 'absolute', right: 16, bottom: 16 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+  emptyWrap: { flex: 1, paddingHorizontal: 16 },
+  list: { paddingHorizontal: 16, paddingBottom: 88 },
 });

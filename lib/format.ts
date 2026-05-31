@@ -17,13 +17,4 @@ export function formatTransactionType(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-export const ACCOUNT_COLORS = [
-  '#6750A4',
-  '#1565C0',
-  '#2E7D32',
-  '#C62828',
-  '#E65100',
-  '#00838F',
-  '#6A1B9A',
-  '#AD1457',
-];
+export { ACCOUNT_COLORS } from './colors';

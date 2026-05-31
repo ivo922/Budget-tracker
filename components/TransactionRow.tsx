@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { List, Text, useTheme } from 'react-native-paper';
+import { Pressable, StyleSheet, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Text } from 'react-native-paper';
 import { formatCurrency, formatDateShort } from '@/lib/format';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
+import { useAppTheme, useTransactionTheme } from '@/lib/useAppTheme';
 
 type Props = {
   transaction: Transaction;
@@ -13,6 +15,12 @@ type Props = {
   onPress?: () => void;
 };
 
+const TYPE_ICONS = {
+  income: 'arrow-down-circle',
+  expense: 'arrow-up-circle',
+  transfer: 'swap-horizontal',
+} as const;
+
 export function TransactionRow({
   transaction,
   account,
@@ -21,10 +29,10 @@ export function TransactionRow({
   toAccount,
   onPress,
 }: Props) {
-  const theme = useTheme();
+  const theme = useAppTheme();
+  const typeColors = useTransactionTheme(transaction.type);
   const isIncome = transaction.type === 'income';
   const isExpense = transaction.type === 'expense';
-  const amountColor = isIncome ? '#2E7D32' : isExpense ? '#C62828' : theme.colors.primary;
   const prefix = isIncome ? '+' : isExpense ? '-' : '';
 
   let title = transaction.note || formatDateShort(transaction.date);
@@ -41,24 +49,78 @@ export function TransactionRow({
       ? 'Transfer'
       : [account?.name, category?.name].filter(Boolean).join(' · ') || transaction.type;
 
+  const indicatorColor =
+    transaction.type === 'transfer'
+      ? typeColors.main
+      : (category?.color ?? account?.color ?? typeColors.main);
+
   return (
-    <List.Item
-      title={title}
-      description={description}
+    <Pressable
       onPress={onPress}
-      left={() => (
-        <View style={[styles.dot, { backgroundColor: category?.color ?? account?.color ?? theme.colors.primary }]} />
-      )}
-      right={() => (
-        <Text style={{ color: amountColor, alignSelf: 'center', fontWeight: '600' }}>
-          {prefix}
-          {formatCurrency(transaction.amount)}
+      style={({ pressed }) => [
+        styles.pill,
+        {
+          borderColor: typeColors.main,
+          backgroundColor: pressed ? typeColors.container : 'transparent',
+        },
+      ]}
+    >
+      <View style={[styles.iconWrap, { backgroundColor: typeColors.container }]}>
+        <MaterialCommunityIcons
+          name={TYPE_ICONS[transaction.type]}
+          size={18}
+          color={typeColors.main}
+        />
+        <View
+          style={[styles.categoryDot, { backgroundColor: indicatorColor, borderColor: theme.colors.background }]}
+        />
+      </View>
+
+      <View style={styles.body}>
+        <Text variant="bodyLarge" style={styles.title} numberOfLines={1}>
+          {title}
         </Text>
-      )}
-    />
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={1}>
+          {description}
+        </Text>
+      </View>
+
+      <Text style={[styles.amount, { color: typeColors.main }]}>
+        {prefix}
+        {formatCurrency(transaction.amount)}
+      </Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  dot: { width: 10, height: 10, borderRadius: 5, alignSelf: 'center', marginLeft: 8 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+  },
+  body: { flex: 1, gap: 2, minWidth: 0 },
+  title: { fontWeight: '500' },
+  amount: { fontWeight: '600', fontVariant: ['tabular-nums'] },
 });
