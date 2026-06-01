@@ -1,17 +1,17 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text } from 'react-native-paper';
 import { EmptyState } from '@/components/EmptyState';
-import { TransactionRow } from '@/components/TransactionRow';
+import { TransactionGroupedList, type TransactionListItem } from '@/components/TransactionGroupedList';
 import {
   getAccountBalance,
   getAccountById,
   getCategoryById,
   getTransactions,
 } from '@/lib/db/queries';
-import type { Account, Category, Transaction } from '@/lib/db/schema';
+import type { Account } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
 import { BORDER_RADIUS, layoutStyles, screenListContentStyle, SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
@@ -20,9 +20,7 @@ export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [account, setAccount] = useState<Account | null>(null);
   const [balance, setBalance] = useState(0);
-  const [transactions, setTransactions] = useState<
-    { tx: Transaction; category?: Category }[]
-  >([]);
+  const [items, setItems] = useState<TransactionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const theme = useAppTheme();
@@ -41,10 +39,13 @@ export default function AccountDetailScreen() {
     const enriched = await Promise.all(
       txs.map(async (tx) => ({
         tx,
+        account: acct,
         category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
+        fromAccount: tx.fromAccountId ? await getAccountById(tx.fromAccountId) : undefined,
+        toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
       })),
     );
-    setTransactions(enriched);
+    setItems(enriched);
     setLoading(false);
   }, [id]);
 
@@ -84,23 +85,16 @@ export default function AccountDetailScreen() {
           {formatCurrency(balance)}
         </Text>
       </View>
-      {transactions.length === 0 ? (
+      {items.length === 0 ? (
         <View style={screenListContentStyle}>
           <EmptyState title="No transactions" message="Transactions for this account will appear here." />
         </View>
       ) : (
-        <FlatList
-          data={transactions}
-          keyExtractor={(item) => item.tx.id}
+        <TransactionGroupedList
+          items={items}
+          extraData={items}
           contentContainerStyle={screenListContentStyle}
-          renderItem={({ item }) => (
-            <TransactionRow
-              transaction={item.tx}
-              account={account}
-              category={item.category}
-              onPress={() => router.push(`/transaction/${item.tx.id}`)}
-            />
-          )}
+          onPressItem={(txId) => router.push(`/transaction/${txId}`)}
         />
       )}
     </View>

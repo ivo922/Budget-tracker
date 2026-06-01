@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Text } from 'react-native-paper';
 import { layoutStyles, screenScrollContentStyle } from '@/lib/layout';
@@ -11,7 +11,8 @@ import { CategoryBreakdownRow } from '@/components/CategoryBreakdownRow';
 import { EmptyState } from '@/components/EmptyState';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { SpendingDonut } from '@/components/SpendingDonut';
-import { TransactionRow } from '@/components/TransactionRow';
+import { buildTransactionDaySections } from '@/components/TransactionGroupedList';
+import { TransactionDayGroup } from '@/components/TransactionDayGroup';
 import { useApp } from '@/lib/context/AppContext';
 import { useAppTheme } from '@/lib/useAppTheme';
 import {
@@ -41,6 +42,7 @@ export default function DashboardScreen() {
   const [budgetDialogVisible, setBudgetDialogVisible] = useState(false);
   const [recent, setRecent] = useState<EnrichedTx[]>([]);
   const [loading, setLoading] = useState(true);
+  const recentSections = useMemo(() => buildTransactionDaySections(recent), [recent]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -135,13 +137,11 @@ export default function DashboardScreen() {
           <EmptyState title="No transactions yet" message="Tap + to add your first transaction." />
         ) : (
           <View style={styles.recentList}>
-            {recent.map(({ tx, account, category }) => (
-              <TransactionRow
-                key={tx.id}
-                transaction={tx}
-                account={account}
-                category={category}
-                onPress={() => router.push(`/transaction/${tx.id}`)}
+            {recentSections.map((section) => (
+              <TransactionDayGroup
+                key={section.key}
+                section={section}
+                onPressItem={(txId) => router.push(`/transaction/${txId}`)}
               />
             ))}
           </View>

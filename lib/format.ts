@@ -5,6 +5,12 @@ export function formatCurrency(amount: number): string {
   return `${sign}$${Math.abs(amount).toFixed(2)}`;
 }
 
+export function formatSignedCurrency(amount: number): string {
+  if (amount === 0) return formatCurrency(0);
+  const prefix = amount > 0 ? '+' : '-';
+  return `${prefix}${formatCurrency(Math.abs(amount))}`;
+}
+
 export function formatDate(timestamp: number): string {
   return format(new Date(timestamp), 'MMM d, yyyy');
 }

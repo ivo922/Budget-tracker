@@ -1,10 +1,10 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { format } from 'date-fns';
 import { Text } from 'react-native-paper';
-import { formatCurrency, formatDateShort } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
-import { BORDER_RADIUS } from '@/lib/layout';
 import { useAppTheme, useTransactionTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -36,7 +36,7 @@ export function TransactionRow({
   const isExpense = transaction.type === 'expense';
   const prefix = isIncome ? '+' : isExpense ? '-' : '';
 
-  let title = transaction.note || formatDateShort(transaction.date);
+  let title = transaction.note || format(new Date(transaction.date), 'HH:mm');
   if (transaction.type === 'transfer') {
     title = transaction.note || `${fromAccount?.name ?? '?'} → ${toAccount?.name ?? '?'}`;
   } else if (category) {
@@ -45,10 +45,10 @@ export function TransactionRow({
     title = transaction.note || account.name;
   }
 
+  const time = format(new Date(transaction.date), 'HH:mm');
+  const meta = [account?.name, category?.name].filter(Boolean).join(' · ');
   const description =
-    transaction.type === 'transfer'
-      ? 'Transfer'
-      : [account?.name, category?.name].filter(Boolean).join(' · ') || transaction.type;
+    transaction.type === 'transfer' ? `Transfer · ${time}` : meta ? `${meta} · ${time}` : time;
 
   const indicatorColor =
     transaction.type === 'transfer'
@@ -59,21 +59,18 @@ export function TransactionRow({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.pill,
-        {
-          borderColor: typeColors.main,
-          backgroundColor: pressed ? typeColors.container : 'transparent',
-        },
+        styles.row,
+        { backgroundColor: pressed ? theme.colors.surfaceElevated : 'transparent' },
       ]}
     >
       <View style={[styles.iconWrap, { backgroundColor: typeColors.container }]}>
         <MaterialCommunityIcons
           name={TYPE_ICONS[transaction.type]}
-          size={18}
+          size={20}
           color={typeColors.main}
         />
         <View
-          style={[styles.categoryDot, { backgroundColor: indicatorColor, borderColor: theme.colors.background }]}
+          style={[styles.categoryDot, { backgroundColor: indicatorColor, borderColor: theme.colors.surface }]}
         />
       </View>
 
@@ -95,33 +92,30 @@ export function TransactionRow({
 }
 
 const styles = StyleSheet.create({
-  pill: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderWidth: 1.5,
-    borderRadius: BORDER_RADIUS,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    marginBottom: 8,
   },
   iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: BORDER_RADIUS,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryDot: {
     position: 'absolute',
-    bottom: -1,
-    right: -1,
+    bottom: 0,
+    right: 0,
     width: 10,
     height: 10,
-    borderRadius: BORDER_RADIUS,
+    borderRadius: 5,
     borderWidth: 2,
   },
   body: { flex: 1, gap: 2, minWidth: 0 },
-  title: { fontWeight: '500' },
+  title: { fontWeight: '600' },
   amount: { fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

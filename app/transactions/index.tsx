@@ -1,11 +1,17 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { SectionList, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Chip, Text } from 'react-native-paper';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View, type SectionList, type SectionListData, type ViewToken } from 'react-native';
+import { ActivityIndicator, Chip } from 'react-native-paper';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { EmptyState } from '@/components/EmptyState';
+import { MonthNavBar } from '@/components/MonthNavBar';
 import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
-import { TransactionRow } from '@/components/TransactionRow';
+import {
+  buildTransactionDaySections,
+  TransactionGroupedList,
+  type TransactionDaySection,
+  type TransactionListItem,
+} from '@/components/TransactionGroupedList';
 import { TransactionTypeChip } from '@/components/TransactionTypeChip';
 import { useApp } from '@/lib/context/AppContext';
 import {
@@ -14,36 +20,22 @@ import {
   getCategoryById,
   getTransactions,
 } from '@/lib/db/queries';
-import type { Account, Category, Transaction } from '@/lib/db/schema';
-import { groupByMonth, monthSectionLabel } from '@/lib/groupTransactions';
+import type { Account } from '@/lib/db/schema';
 import { layoutStyles, screenListContentStyle, SCREEN_PADDING } from '@/lib/layout';
-import { useAppTheme } from '@/lib/useAppTheme';
-
-type EnrichedTx = {
-  tx: Transaction;
-  account?: Account;
-  category?: Category;
-  fromAccount?: Account;
-  toAccount?: Account;
-};
-
-type EnrichedWithDate = EnrichedTx & { date: number };
-
-type TxSection = {
-  title: string;
-  data: EnrichedTx[];
-};
 
 export default function AllTransactionsScreen() {
   const router = useRouter();
   const { ready, refreshKey } = useApp();
-  const theme = useAppTheme();
-  const [sections, setSections] = useState<TxSection[]>([]);
+  const listRef = useRef<SectionList<TransactionListItem, TransactionDaySection>>(null);
+  const pendingScroll = useRef<{ sectionIndex: number; itemIndex: number } | null>(null);
+  const [items, setItems] = useState<TransactionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterAccount, setFilterAccount] = useState<string | undefined>();
   const [filterType, setFilterType] = useState<'income' | 'expense' | 'transfer' | undefined>();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [activeMonth, setActiveMonth] = useState<string | null>(null);
+  const [monthBarVisible, setMonthBarVisible] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,16 +52,66 @@ export default function AllTransactionsScreen() {
         toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
       })),
     );
-    const withDate: EnrichedWithDate[] = enriched.map((e) => ({ ...e, date: e.tx.date }));
-    const grouped = groupByMonth(withDate);
-    setSections(
-      grouped.map((g) => ({
-        title: monthSectionLabel(g.key),
-        data: g.data,
-      })),
-    );
+    setItems(enriched);
+    const sections = buildTransactionDaySections(enriched);
+    setActiveMonth(sections[0]?.monthKey ?? null);
+    setMonthBarVisible(false);
     setLoading(false);
   }, [filterAccount, filterType, refreshKey]);
+
+  const daySections = useMemo(() => buildTransactionDaySections(items), [items]);
+
+  const monthKeys = useMemo(() => {
+    const keys = new Set(daySections.map((s) => s.monthKey));
+    return Array.from(keys).sort((a, b) => b.localeCompare(a));
+  }, [daySections]);
+
+  const sectionIndexByMonth = useMemo(() => {
+    const map = new Map<string, number>();
+    daySections.forEach((section, index) => {
+      if (!map.has(section.monthKey)) map.set(section.monthKey, index);
+    });
+    return map;
+  }, [daySections]);
+
+  const showMonthBar = monthKeys.length > 1 && monthBarVisible;
+
+  const scrollToMonth = useCallback(
+    (monthKey: string) => {
+      const sectionIndex = sectionIndexByMonth.get(monthKey);
+      if (sectionIndex === undefined) return;
+      setActiveMonth(monthKey);
+      pendingScroll.current = { sectionIndex, itemIndex: 0 };
+      listRef.current?.scrollToLocation({
+        sectionIndex,
+        itemIndex: 0,
+        animated: true,
+        viewOffset: 0,
+      });
+    },
+    [sectionIndexByMonth],
+  );
+
+  const sectionsRef = useRef(daySections);
+  sectionsRef.current = daySections;
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<TransactionListItem>[] }) => {
+      if (viewableItems.length === 0) return;
+      const top = viewableItems.find((v) => v.isViewable) ?? viewableItems[0];
+      const section = top.section as SectionListData<TransactionListItem, TransactionDaySection> | undefined;
+      if (!section?.monthKey) return;
+
+      setActiveMonth(section.monthKey);
+
+      const firstMonth = sectionsRef.current[0]?.monthKey;
+      if (!firstMonth) return;
+      setMonthBarVisible(section.monthKey !== firstMonth);
+    },
+    [],
+  );
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 40 }).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -130,37 +172,34 @@ export default function AllTransactionsScreen() {
         ))}
       </View>
 
-      {sections.length === 0 ? (
+      {showMonthBar && activeMonth ? (
+        <MonthNavBar months={monthKeys} activeMonth={activeMonth} onSelectMonth={scrollToMonth} />
+      ) : null}
+
+      {items.length === 0 ? (
         <View style={styles.emptyWrap}>
           <EmptyState title="No transactions" message="Tap + to add income, expenses, or transfers." />
         </View>
       ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.tx.id}
+        <TransactionGroupedList
+          ref={listRef}
+          items={items}
+          extraData={items}
           contentContainerStyle={screenListContentStyle}
-          stickySectionHeadersEnabled
-          renderSectionHeader={({ section: { title } }) => (
-            <Text
-              variant="titleSmall"
-              style={[
-                styles.sectionHeader,
-                { backgroundColor: theme.colors.background, color: theme.colors.onSurfaceVariant },
-              ]}
-            >
-              {title}
-            </Text>
-          )}
-          renderItem={({ item }) => (
-            <TransactionRow
-              transaction={item.tx}
-              account={item.account}
-              category={item.category}
-              fromAccount={item.fromAccount}
-              toAccount={item.toAccount}
-              onPress={() => router.push(`/transaction/${item.tx.id}`)}
-            />
-          )}
+          onPressItem={(id) => router.push(`/transaction/${id}`)}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          onScrollToIndexFailed={() => {
+            const target = pendingScroll.current;
+            if (!target) return;
+            setTimeout(() => {
+              listRef.current?.scrollToLocation({
+                ...target,
+                animated: true,
+              });
+              pendingScroll.current = null;
+            }, 100);
+          }}
         />
       )}
 
@@ -172,5 +211,4 @@ export default function AllTransactionsScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyWrap: { flex: 1, padding: SCREEN_PADDING },
-  sectionHeader: { paddingTop: 8, paddingBottom: 8, fontWeight: '600' },
 });
