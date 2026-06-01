@@ -1,14 +1,18 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Button,
   Text,
   TextInput,
 } from 'react-native-paper';
+import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { ConfirmPopup } from '@/components/ConfirmPopup';
+import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
+import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
 import { useErrorStyle, useAppTheme } from '@/lib/useAppTheme';
 import { EmptyState } from '@/components/EmptyState';
@@ -31,6 +35,7 @@ export default function EditTransactionScreen() {
   const { refresh } = useApp();
   const theme = useAppTheme();
   const errorStyle = useErrorStyle();
+  const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
   const [loading, setLoading] = useState(true);
   const [original, setOriginal] = useState<Transaction | null>(null);
   const [type, setType] = useState<TransactionType>('expense');
@@ -186,8 +191,19 @@ export default function EditTransactionScreen() {
   }
 
   return (
-    <>
-      <ScrollView contentContainerStyle={styles.content}>
+    <View style={layoutStyles.screen}>
+      <CollapsibleScreenHeader
+        title="Edit transaction"
+        scrollY={scrollY}
+        headerHeight={headerHeight}
+        leftAction="back"
+        onLeftPress={() => router.back()}
+      />
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={[scrollContentStyleNoFab, styles.content]}
+      >
         <TransactionTypeSelector value={type} onChange={setType} />
         <TextInput label="Amount" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" left={<TextInput.Affix text="$" />} />
         {type === 'transfer' ? (
@@ -240,7 +256,7 @@ export default function EditTransactionScreen() {
           <Button mode="outlined" textColor={theme.colors.error} onPress={() => setDeleteVisible(true)}>Delete</Button>
           <Button mode="contained" onPress={handleSave}>Save</Button>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
       <ConfirmPopup
         visible={deleteVisible}
         onClose={() => setDeleteVisible(false)}
@@ -248,12 +264,12 @@ export default function EditTransactionScreen() {
         message="This action cannot be undone."
         onConfirm={handleDelete}
       />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12 },
+  content: { gap: 12, paddingBottom: SCREEN_PADDING },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
 });

@@ -7,6 +7,7 @@ import {
   type SectionListRenderItem,
   type ViewStyle,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Divider } from 'react-native-paper';
 import { TransactionDayHeader } from '@/components/TransactionDayHeader';
 import { TransactionRow } from '@/components/TransactionRow';
@@ -51,11 +52,17 @@ type Props = {
 } & Pick<
   SectionListProps<TransactionListItem, TransactionDaySection>,
   | 'extraData'
+  | 'onScroll'
+  | 'scrollEventThrottle'
   | 'onViewableItemsChanged'
   | 'viewabilityConfig'
   | 'onScrollToIndexFailed'
   | 'ListHeaderComponent'
 >;
+
+const AnimatedSectionList = Animated.createAnimatedComponent(
+  SectionList<TransactionListItem, TransactionDaySection>,
+);
 
 export const TransactionGroupedList = forwardRef<
   SectionList<TransactionListItem, TransactionDaySection>,
@@ -106,7 +113,7 @@ export const TransactionGroupedList = forwardRef<
   };
 
   return (
-    <SectionList
+    <AnimatedSectionList
       ref={ref}
       sections={sections}
       keyExtractor={(item, index) => item?.tx?.id ?? `tx-row-${index}`}

@@ -120,6 +120,15 @@ export async function deleteAccount(id: string): Promise<void> {
   await db.delete(accounts).where(eq(accounts.id, id));
 }
 
+export async function getTotalNetBalance(): Promise<number> {
+  const accts = await getAccounts();
+  let total = 0;
+  for (const account of accts) {
+    total += await getAccountBalance(account.id);
+  }
+  return total;
+}
+
 export async function getAccountBalance(accountId: string): Promise<number> {
   const db = getDb();
   const account = await getAccountById(accountId);

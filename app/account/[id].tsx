@@ -1,10 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Text } from 'react-native-paper';
+import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { TransactionGroupedList, type TransactionListItem } from '@/components/TransactionGroupedList';
+import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import {
   getAccountBalance,
   getAccountById,
@@ -13,7 +16,7 @@ import {
 } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS, layoutStyles, screenListContentStyle, SCREEN_PADDING } from '@/lib/layout';
+import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 export default function AccountDetailScreen() {
@@ -24,6 +27,7 @@ export default function AccountDetailScreen() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const theme = useAppTheme();
+  const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -55,6 +59,28 @@ export default function AccountDetailScreen() {
     }, [load]),
   );
 
+  const accountHeader = useMemo(() => {
+    if (!account) return null;
+    return (
+      <View
+        style={[
+          styles.accountCard,
+          {
+            borderColor: account.color,
+            backgroundColor: theme.colors.surface,
+          },
+        ]}
+      >
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>
+          {account.name}
+        </Text>
+        <Text variant="titleLarge" style={[styles.balance, { color: theme.colors.onSurface }]}>
+          {formatCurrency(balance)}
+        </Text>
+      </View>
+    );
+  }, [account, balance, theme.colors.onSurface, theme.colors.surface]);
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -69,31 +95,30 @@ export default function AccountDetailScreen() {
 
   return (
     <View style={layoutStyles.screen}>
-      <View
-        style={[
-          styles.header,
-          {
-            borderColor: account.color,
-            backgroundColor: theme.colors.surface,
-          },
-        ]}
-      >
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>
-          {account.name}
-        </Text>
-        <Text variant="titleLarge" style={[styles.balance, { color: theme.colors.onSurface }]}>
-          {formatCurrency(balance)}
-        </Text>
-      </View>
+      <CollapsibleScreenHeader
+        title={account.name}
+        scrollY={scrollY}
+        headerHeight={headerHeight}
+        leftAction="back"
+        onLeftPress={() => router.back()}
+      />
       {items.length === 0 ? (
-        <View style={screenListContentStyle}>
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={[scrollContentStyle, styles.emptyScroll]}
+        >
+          {accountHeader}
           <EmptyState title="No transactions" message="Transactions for this account will appear here." />
-        </View>
+        </Animated.ScrollView>
       ) : (
         <TransactionGroupedList
           items={items}
           extraData={items}
-          contentContainerStyle={screenListContentStyle}
+          contentContainerStyle={scrollContentStyle}
+          ListHeaderComponent={accountHeader}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
           onPressItem={(txId) => router.push(`/transaction/${txId}`)}
         />
       )}
@@ -103,9 +128,8 @@ export default function AccountDetailScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: {
-    marginHorizontal: SCREEN_PADDING,
-    marginTop: SCREEN_PADDING,
+  emptyScroll: { flexGrow: 1 },
+  accountCard: {
     marginBottom: 8,
     padding: 16,
     borderWidth: 2,

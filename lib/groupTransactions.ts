@@ -79,6 +79,14 @@ export function daySectionLabel(timestamp: number, reference = new Date()): stri
   return format(d, 'MMM d, yyyy');
 }
 
+/** Index of the first day-section for a month (most recent day in that month). */
+export function leadingSectionIndexForMonth<T extends { monthKey: string }>(
+  sections: readonly T[],
+  monthKey: string,
+): number {
+  return sections.findIndex((section) => section.monthKey === monthKey);
+}
+
 export function monthNavLabel(key: string, reference = new Date()): string {
   const [y, m] = key.split('-').map(Number);
   const d = new Date(y, m - 1, 1);

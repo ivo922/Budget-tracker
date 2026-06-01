@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SectionList, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Button,
@@ -8,8 +10,10 @@ import {
   Text,
 } from 'react-native-paper';
 import { AddCategoryForm } from '@/components/AddCategoryForm';
+import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { ConfirmPopup } from '@/components/ConfirmPopup';
 import { FormPopup } from '@/components/FormPopup';
+import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import {
   countTransactionsForCategory,
@@ -18,15 +22,21 @@ import {
   getSubcategories,
 } from '@/lib/db/queries';
 import type { Category } from '@/lib/db/schema';
-import { BORDER_RADIUS, layoutStyles, screenListContentStyle, SCREEN_PADDING } from '@/lib/layout';
+import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
-type Section = { title: string; data: Category[]; parent: Category };
+type CategorySection = { title: string; data: Category[]; parent: Category };
+
+const AnimatedSectionList = Animated.createAnimatedComponent(
+  SectionList<Category, CategorySection>,
+);
 
 export default function CategoriesScreen() {
+  const router = useRouter();
   const { ready, refresh } = useApp();
   const theme = useAppTheme();
-  const [sections, setSections] = useState<Section[]>([]);
+  const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
+  const [sections, setSections] = useState<CategorySection[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -39,7 +49,7 @@ export default function CategoriesScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     const parents = await getParentCategories();
-    const built: Section[] = await Promise.all(
+    const built: CategorySection[] = await Promise.all(
       parents.map(async (parent) => ({
         title: parent.name,
         parent,
@@ -90,6 +100,22 @@ export default function CategoriesScreen() {
     setExpanded((prev) => ({ ...prev, [parentId]: !prev[parentId] }));
   };
 
+  const listHeader = useMemo(
+    () => (
+      <View style={styles.addWrap}>
+        <Button
+          mode="contained"
+          onPress={openAddParent}
+          buttonColor={theme.colors.primary}
+          textColor={theme.colors.onPrimary}
+        >
+          Add category
+        </Button>
+      </View>
+    ),
+    [theme.colors.onPrimary, theme.colors.primary],
+  );
+
   if (!ready || loading) {
     return (
       <View style={styles.center}>
@@ -100,15 +126,20 @@ export default function CategoriesScreen() {
 
   return (
     <View style={layoutStyles.screen}>
-      <View style={styles.addWrap}>
-        <Button mode="contained" onPress={openAddParent} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary}>
-          Add category
-        </Button>
-      </View>
-      <SectionList
+      <CollapsibleScreenHeader
+        title="Categories"
+        scrollY={scrollY}
+        headerHeight={headerHeight}
+        leftAction="back"
+        onLeftPress={() => router.back()}
+      />
+      <AnimatedSectionList
         sections={sections}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={screenListContentStyle}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={scrollContentStyleNoFab}
+        ListHeaderComponent={listHeader}
         style={{ backgroundColor: theme.colors.background }}
         renderSectionHeader={({ section }) => (
           <List.Item
@@ -205,7 +236,7 @@ export default function CategoriesScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  addWrap: { paddingHorizontal: SCREEN_PADDING, paddingTop: SCREEN_PADDING, paddingBottom: 0 },
+  addWrap: { paddingBottom: SCREEN_PADDING },
   parentRow: {
     borderWidth: 1,
     borderRadius: BORDER_RADIUS,

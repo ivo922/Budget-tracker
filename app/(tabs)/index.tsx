@@ -1,30 +1,28 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button, Text } from 'react-native-paper';
-import { layoutStyles, screenScrollContentStyle } from '@/lib/layout';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
-import { BalanceCard } from '@/components/BalanceCard';
 import { BudgetEditorDialog } from '@/components/BudgetEditorDialog';
-import { BudgetSummary } from '@/components/BudgetSummary';
-import { CategoryBreakdownRow } from '@/components/CategoryBreakdownRow';
+import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
-import { PeriodSelector } from '@/components/PeriodSelector';
 import { SpendingDonut } from '@/components/SpendingDonut';
 import { buildTransactionDaySections } from '@/components/TransactionGroupedList';
 import { TransactionDayGroup } from '@/components/TransactionDayGroup';
+import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
-import { useAppTheme } from '@/lib/useAppTheme';
 import {
   getAccountById,
-  getBudgetVsActual,
   getCategoryById,
-  getPeriodSummary,
   getSpendingByCategory,
+  getTotalNetBalance,
   getTransactions,
 } from '@/lib/db/queries';
-import type { BudgetVsActual, CategorySpending } from '@/lib/db/queries';
+import type { CategorySpending } from '@/lib/db/queries';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
+import { getPeriodRange } from '@/lib/periods';
+import { layoutStyles } from '@/lib/layout';
 
 type EnrichedTx = {
   tx: Transaction;
@@ -34,35 +32,27 @@ type EnrichedTx = {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { ready, period, periodRange, setPeriod, refreshKey } = useApp();
-  const theme = useAppTheme();
-  const [summary, setSummary] = useState({ income: 0, expense: 0, net: 0 });
+  const { ready, refreshKey } = useApp();
+  const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
+  const [netBalance, setNetBalance] = useState(0);
   const [spending, setSpending] = useState<CategorySpending[]>([]);
-  const [budgetSummary, setBudgetSummary] = useState<BudgetVsActual | null>(null);
   const [budgetDialogVisible, setBudgetDialogVisible] = useState(false);
   const [recent, setRecent] = useState<EnrichedTx[]>([]);
   const [loading, setLoading] = useState(true);
   const recentSections = useMemo(() => buildTransactionDaySections(recent), [recent]);
 
+  const monthRange = useMemo(() => getPeriodRange('month'), [refreshKey]);
+
   const load = useCallback(async () => {
     setLoading(true);
-    const s = await getPeriodSummary(periodRange.start, periodRange.end);
-    setSummary(s);
-    const spend = await getSpendingByCategory(periodRange.start, periodRange.end);
+    const now = Date.now();
+    const [net, spend, txs] = await Promise.all([
+      getTotalNetBalance(),
+      getSpendingByCategory(0, now),
+      getTransactions({ limit: 5 }),
+    ]);
+    setNetBalance(net);
     setSpending(spend);
-    if (period === 'month') {
-      const ref = new Date(periodRange.start);
-      const budget = await getBudgetVsActual(
-        ref.getFullYear(),
-        ref.getMonth() + 1,
-        periodRange.start,
-        periodRange.end,
-      );
-      setBudgetSummary(budget);
-    } else {
-      setBudgetSummary(null);
-    }
-    const txs = await getTransactions({ limit: 5 });
     const enriched = await Promise.all(
       txs.map(async (tx) => ({
         tx,
@@ -72,7 +62,7 @@ export default function DashboardScreen() {
     );
     setRecent(enriched);
     setLoading(false);
-  }, [period, periodRange.start, periodRange.end, refreshKey]);
+  }, [refreshKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -90,42 +80,23 @@ export default function DashboardScreen() {
 
   return (
     <View style={layoutStyles.screen}>
-      <ScrollView contentContainerStyle={screenScrollContentStyle}>
-        <PeriodSelector value={period} onChange={setPeriod} />
-        <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
-          {periodRange.label}
-        </Text>
-        <View style={styles.cards}>
-          <View style={styles.cardsRow}>
-            <BalanceCard compact label="Income" amount={summary.income} variant="income" />
-            <BalanceCard compact label="Expenses" amount={summary.expense} variant="expense" />
-          </View>
-          <BalanceCard compact fullWidth label="Net" amount={summary.net} variant="net" />
-        </View>
-
-        {spending.length > 0 ? (
-          <>
-            <Text variant="titleMedium" style={styles.section}>
-              Spending breakdown
-            </Text>
-            <View style={styles.chartRow}>
-              <SpendingDonut data={spending} />
-              <CategoryBreakdownRow data={spending} />
-            </View>
-          </>
-        ) : null}
-
-        {period === 'month' && budgetSummary ? (
-          <>
-            <View style={styles.budgetHeader}>
-              <Text variant="titleMedium">Budget</Text>
-              <Button compact onPress={() => setBudgetDialogVisible(true)}>
-                Edit
-              </Button>
-            </View>
-            <BudgetSummary summary={budgetSummary} />
-          </>
-        ) : null}
+      <CollapsibleScreenHeader
+        title="Dashboard"
+        scrollY={scrollY}
+        headerHeight={headerHeight}
+        leftAction="budget"
+        onLeftPress={() => setBudgetDialogVisible(true)}
+      />
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={scrollContentStyle}
+      >
+        <SpendingDonut
+          data={spending}
+          netAmount={netBalance}
+          onPress={() => router.push('/analytics')}
+        />
 
         <View style={styles.recentHeader}>
           <Text variant="titleMedium">Recent transactions</Text>
@@ -146,30 +117,23 @@ export default function DashboardScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
       <AddTransactionFab />
-      {period === 'month' ? (
-        <BudgetEditorDialog
-          visible={budgetDialogVisible}
-          year={new Date(periodRange.start).getFullYear()}
-          month={new Date(periodRange.start).getMonth() + 1}
-          onDismiss={() => {
-            setBudgetDialogVisible(false);
-            load();
-          }}
-        />
-      ) : null}
+      <BudgetEditorDialog
+        visible={budgetDialogVisible}
+        year={new Date(monthRange.start).getFullYear()}
+        month={new Date(monthRange.start).getMonth() + 1}
+        onDismiss={() => {
+          setBudgetDialogVisible(false);
+          load();
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  cards: { gap: 8 },
-  cardsRow: { flexDirection: 'row', gap: 8 },
-  chartRow: { gap: 4 },
-  budgetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
-  section: { marginTop: 12, marginBottom: 4 },
   recentHeader: {
     flexDirection: 'row',
     alignItems: 'center',

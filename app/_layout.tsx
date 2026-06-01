@@ -7,10 +7,7 @@ import { darkTheme, lightTheme, type AppTheme } from '@/lib/theme';
 
 function stackScreenOptions(theme: AppTheme) {
   return {
-    headerStyle: { backgroundColor: theme.colors.surface },
-    headerTintColor: theme.colors.onSurface,
-    headerTitleStyle: { color: theme.colors.onSurface },
-    headerShadowVisible: false,
+    headerShown: false,
     contentStyle: { backgroundColor: theme.colors.background },
   };
 }
@@ -23,12 +20,13 @@ function RootNavigator() {
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={stackScreenOptions(theme)}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="account/[id]" options={{ title: 'Account' }} />
-        <Stack.Screen name="transactions/index" options={{ title: 'All transactions' }} />
-        <Stack.Screen name="transaction/add" options={{ title: 'Add Transaction', presentation: 'card' }} />
-        <Stack.Screen name="transaction/[id]" options={{ title: 'Edit Transaction' }} />
-        <Stack.Screen name="categories/index" options={{ title: 'Categories' }} />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="analytics" />
+        <Stack.Screen name="account/[id]" />
+        <Stack.Screen name="transactions/index" />
+        <Stack.Screen name="transaction/add" options={{ presentation: 'card' }} />
+        <Stack.Screen name="transaction/[id]" />
+        <Stack.Screen name="categories/index" />
       </Stack>
     </>
   );

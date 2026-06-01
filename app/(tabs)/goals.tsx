@@ -1,20 +1,26 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button } from 'react-native-paper';
 import { AddGoalFab } from '@/components/AddGoalFab';
+import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { ConfirmPopup } from '@/components/ConfirmPopup';
 import { EmptyState } from '@/components/EmptyState';
 import { GoalCard } from '@/components/GoalCard';
+import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
-import { layoutStyles, screenListContentStyle } from '@/lib/layout';
+import { layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 import { deleteGoal, getGoalsWithProgress } from '@/lib/db/queries';
 import type { GoalProgress } from '@/lib/db/queries';
 
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<GoalProgress>);
+
 export default function GoalsScreen() {
   const { ready, refresh } = useApp();
   const theme = useAppTheme();
+  const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
   const [items, setItems] = useState<GoalProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<GoalProgress | null>(null);
@@ -49,18 +55,25 @@ export default function GoalsScreen() {
 
   return (
     <View style={layoutStyles.screen}>
+      <CollapsibleScreenHeader title="Goals" scrollY={scrollY} headerHeight={headerHeight} />
       {items.length === 0 ? (
-        <View style={screenListContentStyle}>
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={[scrollContentStyle, styles.emptyScroll]}
+        >
           <EmptyState
             title="No goals yet"
             message="Create a savings or loan goal and link transactions to track progress."
           />
-        </View>
+        </Animated.ScrollView>
       ) : (
-        <FlatList
+        <AnimatedFlatList
           data={items}
           keyExtractor={(item) => item.goal.id}
-          contentContainerStyle={screenListContentStyle}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={scrollContentStyle}
           renderItem={({ item }) => (
             <View style={styles.cardWrap}>
               <GoalCard item={item} />
@@ -89,5 +102,6 @@ export default function GoalsScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyScroll: { flexGrow: 1 },
   cardWrap: { gap: 4 },
 });

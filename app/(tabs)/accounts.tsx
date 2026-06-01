@@ -1,12 +1,15 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { ActivityIndicator, FAB } from 'react-native-paper';
 import { AccountListItem } from '@/components/AccountListItem';
 import { AddAccountForm } from '@/components/AddAccountForm';
+import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { ConfirmPopup } from '@/components/ConfirmPopup';
 import { EmptyState } from '@/components/EmptyState';
 import { FormPopup } from '@/components/FormPopup';
+import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import {
   deleteAccount,
@@ -14,15 +17,18 @@ import {
   getAccounts,
 } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
-import { layoutStyles, screenListContentStyle, SCREEN_PADDING } from '@/lib/layout';
+import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type AccountWithBalance = Account & { balance: number };
+
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<AccountWithBalance>);
 
 export default function AccountsScreen() {
   const router = useRouter();
   const { ready, refresh } = useApp();
   const theme = useAppTheme();
+  const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
   const [accounts, setAccounts] = useState<AccountWithBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [createVisible, setCreateVisible] = useState(false);
@@ -68,15 +74,22 @@ export default function AccountsScreen() {
 
   return (
     <View style={layoutStyles.screen}>
+      <CollapsibleScreenHeader title="Accounts" scrollY={scrollY} headerHeight={headerHeight} />
       {accounts.length === 0 ? (
-        <View style={screenListContentStyle}>
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={[scrollContentStyle, styles.emptyScroll]}
+        >
           <EmptyState title="No accounts" message="Create an account to start tracking balances." />
-        </View>
+        </Animated.ScrollView>
       ) : (
-        <FlatList
+        <AnimatedFlatList
           data={accounts}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={screenListContentStyle}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={scrollContentStyle}
           renderItem={({ item }) => (
             <AccountListItem
               account={item}
@@ -117,5 +130,6 @@ export default function AccountsScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyScroll: { flexGrow: 1 },
   fab: { position: 'absolute', right: SCREEN_PADDING, bottom: SCREEN_PADDING },
 });
