@@ -1,12 +1,13 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, type SectionList, type SectionListData, type ViewToken } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActivityIndicator, Chip } from 'react-native-paper';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
-import { MonthNavBar } from '@/components/MonthNavBar';
+import { MONTH_NAV_BAR_FALLBACK_HEIGHT, MonthNavBar } from '@/components/MonthNavBar';
 import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
 import {
   buildTransactionDaySections,
@@ -18,6 +19,12 @@ import { TransactionTypeChip } from '@/components/TransactionTypeChip';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import { leadingSectionIndexForMonth } from '@/lib/groupTransactions';
+import {
+  estimateScrollOffsetToSection,
+  MONTH_SCROLL_EXTRA_OFFSET,
+  scrollListToOffset,
+  type ScrollableList,
+} from '@/lib/transactionListScroll';
 import {
   getAccountById,
   getAccounts,
@@ -89,15 +96,13 @@ function FiltersHeader({
 
 export default function AllTransactionsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { ready, refreshKey } = useApp();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
   const listRef = useRef<SectionList<TransactionListItem, TransactionDaySection>>(null);
-  const pendingScroll = useRef<{
-    sectionIndex: number;
-    itemIndex: number;
-    viewOffset: number;
-  } | null>(null);
-  const [monthBarHeight, setMonthBarHeight] = useState(0);
+  const suppressViewabilityRef = useRef(false);
+  const [islandHeight, setIslandHeight] = useState(MONTH_NAV_BAR_FALLBACK_HEIGHT);
+  const [listHeaderHeight, setListHeaderHeight] = useState(0);
   const [items, setItems] = useState<TransactionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterAccount, setFilterAccount] = useState<string | undefined>();
@@ -105,7 +110,6 @@ export default function AllTransactionsScreen() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
-  const [monthBarVisible, setMonthBarVisible] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,7 +129,6 @@ export default function AllTransactionsScreen() {
     setItems(enriched);
     const sections = buildTransactionDaySections(enriched);
     setActiveMonth(sections[0]?.monthKey ?? null);
-    setMonthBarVisible(false);
     setLoading(false);
   }, [filterAccount, filterType, refreshKey]);
 
@@ -136,56 +139,57 @@ export default function AllTransactionsScreen() {
     return Array.from(keys).sort((a, b) => b.localeCompare(a));
   }, [daySections]);
 
-  const showMonthBar = monthKeys.length > 1 && monthBarVisible;
+  const showMonthIsland = monthKeys.length > 1 && activeMonth != null;
+
+  const islandStickTop = insets.top + SCREEN_PADDING;
+  const islandRestTop = headerHeight + SCREEN_PADDING;
+
+  const islandAnimatedStyle = useAnimatedStyle(() => ({
+    top: Math.max(islandStickTop, islandRestTop - scrollY.value),
+  }));
+
+  const islandSpacerHeight = SCREEN_PADDING + islandHeight + SCREEN_PADDING;
 
   const scrollToMonth = useCallback(
     (monthKey: string) => {
       const sectionIndex = leadingSectionIndexForMonth(daySections, monthKey);
-      if (sectionIndex < 0) return;
+      if (sectionIndex < 0 || !listRef.current) return;
 
-      const firstMonthKey = daySections[0]?.monthKey;
-      const willShowMonthBar = monthKeys.length > 1 && monthKey !== firstMonthKey;
-      if (willShowMonthBar) setMonthBarVisible(true);
-
+      suppressViewabilityRef.current = true;
       setActiveMonth(monthKey);
 
-      const viewOffset = headerHeight + (willShowMonthBar ? monthBarHeight : 0);
+      const offset = estimateScrollOffsetToSection(
+        daySections,
+        sectionIndex,
+        headerHeight,
+        listHeaderHeight,
+      );
 
-      const target = { sectionIndex, itemIndex: 0, viewOffset };
-      pendingScroll.current = target;
+      const islandClearance = showMonthIsland
+        ? islandStickTop + islandHeight + SCREEN_PADDING
+        : 0;
 
-      const runScroll = (animated: boolean) => {
-        listRef.current?.scrollToLocation({
-          ...target,
-          animated,
-          viewPosition: 0,
-        });
-      };
+      scrollListToOffset(
+        listRef.current as ScrollableList,
+        offset - islandClearance - MONTH_SCROLL_EXTRA_OFFSET,
+        true,
+      );
 
-      // Unanimated pass helps SectionList measure distant sections; animated pass follows.
-      requestAnimationFrame(() => {
-        runScroll(false);
-        requestAnimationFrame(() => runScroll(true));
-      });
+      setTimeout(() => {
+        suppressViewabilityRef.current = false;
+      }, 400);
     },
-    [daySections, monthKeys, headerHeight, monthBarHeight],
+    [daySections, headerHeight, islandHeight, islandStickTop, listHeaderHeight, showMonthIsland],
   );
-
-  const sectionsRef = useRef(daySections);
-  sectionsRef.current = daySections;
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<TransactionListItem>[] }) => {
-      if (viewableItems.length === 0) return;
+      if (suppressViewabilityRef.current || viewableItems.length === 0) return;
       const top = viewableItems.find((v) => v.isViewable) ?? viewableItems[0];
       const section = top.section as SectionListData<TransactionListItem, TransactionDaySection> | undefined;
       if (!section?.monthKey) return;
 
       setActiveMonth(section.monthKey);
-
-      const firstMonth = sectionsRef.current[0]?.monthKey;
-      if (!firstMonth) return;
-      setMonthBarVisible(section.monthKey !== firstMonth);
     },
     [],
   );
@@ -194,17 +198,24 @@ export default function AllTransactionsScreen() {
 
   const listHeader = useMemo(
     () => (
-      <FiltersHeader
-        filterAccount={filterAccount}
-        filterType={filterType}
-        accounts={accounts}
-        menuVisible={menuVisible}
-        setMenuVisible={setMenuVisible}
-        setFilterAccount={setFilterAccount}
-        setFilterType={setFilterType}
-      />
+      <View
+        onLayout={(event) => {
+          setListHeaderHeight(event.nativeEvent.layout.height);
+        }}
+      >
+        {showMonthIsland ? <View style={{ height: islandSpacerHeight }} /> : null}
+        <FiltersHeader
+          filterAccount={filterAccount}
+          filterType={filterType}
+          accounts={accounts}
+          menuVisible={menuVisible}
+          setMenuVisible={setMenuVisible}
+          setFilterAccount={setFilterAccount}
+          setFilterType={setFilterType}
+        />
+      </View>
     ),
-    [filterAccount, filterType, accounts, menuVisible],
+    [filterAccount, filterType, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
   );
 
   useFocusEffect(
@@ -230,19 +241,28 @@ export default function AllTransactionsScreen() {
         title="Transactions"
         scrollY={scrollY}
         headerHeight={headerHeight}
-        leftAction="back"
-        onLeftPress={() => router.back()}
+        leftAction={showMonthIsland ? undefined : 'back'}
+        onLeftPress={showMonthIsland ? undefined : () => router.back()}
       />
 
-      {showMonthBar && activeMonth ? (
-        <View
-          style={[styles.monthBar, { top: headerHeight }]}
+      {showMonthIsland ? (
+        <Animated.View
+          style={[
+            styles.floatingIsland,
+            { left: SCREEN_PADDING, right: SCREEN_PADDING },
+            islandAnimatedStyle,
+          ]}
           onLayout={(event) => {
-            setMonthBarHeight(event.nativeEvent.layout.height);
+            setIslandHeight(event.nativeEvent.layout.height);
           }}
         >
-          <MonthNavBar months={monthKeys} activeMonth={activeMonth} onSelectMonth={scrollToMonth} />
-        </View>
+          <MonthNavBar
+            months={monthKeys}
+            activeMonth={activeMonth}
+            onSelectMonth={scrollToMonth}
+            onBackPress={() => router.back()}
+          />
+        </Animated.View>
       ) : null}
 
       {items.length === 0 ? (
@@ -266,19 +286,6 @@ export default function AllTransactionsScreen() {
           onPressItem={(id) => router.push(`/transaction/${id}`)}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
-          onScrollToIndexFailed={() => {
-            const target = pendingScroll.current;
-            if (!target) return;
-            setTimeout(() => {
-              listRef.current?.scrollToLocation({
-                sectionIndex: target.sectionIndex,
-                itemIndex: target.itemIndex,
-                viewOffset: target.viewOffset,
-                viewPosition: 0,
-                animated: true,
-              });
-            }, 150);
-          }}
         />
       )}
 
@@ -289,11 +296,9 @@ export default function AllTransactionsScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  monthBar: {
+  floatingIsland: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 9,
+    zIndex: 10,
   },
   filters: {
     flexDirection: 'row',
