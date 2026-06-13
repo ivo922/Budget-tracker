@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button, Text } from 'react-native-paper';
+import { AccountCarousel, ADD_ACCOUNT_SLIDE_ID, accountFilterForSlide, isAddAccountSlide, type AccountSlide } from '@/components/AccountCarousel';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { BudgetSummary } from '@/components/BudgetSummary';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
@@ -13,10 +14,13 @@ import { TransactionDayGroup } from '@/components/TransactionDayGroup';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import {
+  getAccountBalance,
   getAccountById,
+  getAccounts,
   getBudgetVsActual,
   getCategoryById,
   getPeriodSummary,
+  getTotalNetBalance,
   getTransactions,
   type BudgetVsActual,
 } from '@/lib/db/queries';
@@ -45,6 +49,8 @@ export default function DashboardScreen() {
   const [period, setPeriod] = useState<DashboardPeriod>('this_month');
   const [summary, setSummary] = useState({ income: 0, expense: 0 });
   const [recent, setRecent] = useState<EnrichedTx[]>([]);
+  const [slides, setSlides] = useState<AccountSlide[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [budgetSummary, setBudgetSummary] = useState<BudgetVsActual | null>(null);
   const recentSections = useMemo(() => buildTransactionDaySections(recent), [recent]);
@@ -72,10 +78,32 @@ export default function DashboardScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    const rows = await getAccounts();
+    const [total, ...balances] = await Promise.all([
+      getTotalNetBalance(),
+      ...rows.map((a) => getAccountBalance(a.id)),
+    ]);
+    const accountSlides: AccountSlide[] = rows.map((a, i) => ({
+      id: a.id,
+      name: a.name,
+      color: a.color,
+      balance: balances[i],
+    }));
+    const nextSlides: AccountSlide[] = [
+      { id: null, name: 'All accounts', color: theme.colors.primary, balance: total },
+      ...accountSlides,
+      { id: ADD_ACCOUNT_SLIDE_ID, name: 'Add account', color: theme.colors.primary, balance: 0 },
+    ];
+    setSlides(nextSlides);
+
+    const safeIndex = selectedIndex < nextSlides.length ? selectedIndex : 0;
+    if (safeIndex !== selectedIndex) setSelectedIndex(safeIndex);
+
+    const accountFilter = accountFilterForSlide(nextSlides[safeIndex]);
     const range = getDashboardPeriodRange(period);
     const [periodSummary, txs, budget] = await Promise.all([
-      getPeriodSummary(range.start, range.end),
-      getTransactions({ limit: 5 }),
+      getPeriodSummary(range.start, range.end, accountFilter),
+      getTransactions({ limit: 5, accountId: accountFilter }),
       getBudgetVsActual(
         currentMonth.year,
         currentMonth.month,
@@ -94,13 +122,15 @@ export default function DashboardScreen() {
     );
     setRecent(enriched);
     setLoading(false);
-  }, [budgetMonthRange.end, budgetMonthRange.start, currentMonth.month, currentMonth.year, period, refreshKey]);
+  }, [budgetMonthRange.end, budgetMonthRange.start, currentMonth.month, currentMonth.year, period, refreshKey, selectedIndex, theme.colors.primary]);
 
   useEffect(() => {
     if (ready) load();
   }, [ready, load]);
 
-  if (!ready || loading) {
+  const hasAccounts = slides.some((slide) => slide.id && !isAddAccountSlide(slide));
+
+  if (!ready || (loading && slides.length === 0)) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" />
@@ -115,7 +145,28 @@ export default function DashboardScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         contentContainerStyle={scrollContentStyle}
+        nestedScrollEnabled
       >
+        <AccountCarousel
+          slides={slides}
+          selectedIndex={selectedIndex}
+          onIndexChange={setSelectedIndex}
+          onSlidePress={(slide) => {
+            if (isAddAccountSlide(slide)) {
+              router.push('/account/add');
+              return;
+            }
+            if (slide.id) router.push(`/account/${slide.id}`);
+          }}
+        />
+
+        {!hasAccounts ? (
+          <EmptyState
+            title="No accounts yet"
+            message="Swipe to Add account and create your first one."
+          />
+        ) : null}
+
         <MonthSummaryCard
           period={period}
           onPeriodChange={setPeriod}
@@ -161,7 +212,9 @@ export default function DashboardScreen() {
             View all
           </Button>
         </View>
-        {recent.length === 0 ? (
+        {loading ? (
+          <ActivityIndicator style={styles.listLoader} />
+        ) : recent.length === 0 ? (
           <EmptyState title="No transactions yet" message="Tap + to add your first transaction." />
         ) : (
           <View style={styles.recentList}>
@@ -204,4 +257,5 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   recentList: { gap: 0 },
+  listLoader: { marginVertical: 24 },
 });

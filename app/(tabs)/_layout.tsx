@@ -38,15 +38,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="accounts"
-        options={{
-          title: 'Accounts',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="wallet" size={size} color={color} />
-          ),
-        }}
-      />
     </Tabs>
   );
 }

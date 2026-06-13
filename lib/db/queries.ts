@@ -292,12 +292,20 @@ export async function deleteTransaction(id: string): Promise<void> {
   await db.delete(transactions).where(eq(transactions.id, id));
 }
 
-export async function getPeriodSummary(start: number, end: number): Promise<PeriodSummary> {
+export async function getPeriodSummary(
+  start: number,
+  end: number,
+  accountId?: string,
+): Promise<PeriodSummary> {
   const db = getDb();
+  const conditions = [gte(transactions.date, start), lte(transactions.date, end)];
+  if (accountId) {
+    conditions.push(eq(transactions.accountId, accountId));
+  }
   const rows = await db
     .select()
     .from(transactions)
-    .where(and(gte(transactions.date, start), lte(transactions.date, end)));
+    .where(and(...conditions));
 
   let income = 0;
   let expense = 0;
