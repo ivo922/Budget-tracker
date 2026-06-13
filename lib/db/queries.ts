@@ -1,4 +1,5 @@
 import * as Crypto from 'expo-crypto';
+import { format, startOfDay } from 'date-fns';
 import {
   and,
   asc,
@@ -36,6 +37,7 @@ export type TransactionFilters = {
   accountId?: string;
   type?: TransactionType;
   categoryId?: string;
+  uncategorized?: boolean;
   start?: number;
   end?: number;
   limit?: number;
@@ -54,6 +56,9 @@ export type CategorySpending = {
   total: number;
   parentId: string | null;
 };
+
+export const UNCATEGORIZED_CATEGORY_ID = '__uncategorized__';
+export const UNCATEGORIZED_COLOR = '#9AA3AD';
 
 export type GoalProgress = {
   goal: Goal;
@@ -245,7 +250,11 @@ export async function getTransactions(filters: TransactionFilters = {}): Promise
     );
   }
   if (filters.type) conditions.push(eq(transactions.type, filters.type));
-  if (filters.categoryId) conditions.push(eq(transactions.categoryId, filters.categoryId));
+  if (filters.uncategorized) {
+    conditions.push(isNull(transactions.categoryId));
+  } else if (filters.categoryId) {
+    conditions.push(eq(transactions.categoryId, filters.categoryId));
+  }
   if (filters.start) conditions.push(gte(transactions.date, filters.start));
   if (filters.end) conditions.push(lte(transactions.date, filters.end));
 
@@ -316,29 +325,35 @@ export async function getPeriodSummary(
   return { income, expense, net: income - expense };
 }
 
-export async function getSpendingByCategory(
+async function getAmountByCategory(
+  type: Extract<TransactionType, 'income' | 'expense'>,
   start: number,
   end: number,
   parentId?: string | null,
+  accountId?: string,
 ): Promise<CategorySpending[]> {
   const db = getDb();
-  const expenseTx = await db
-    .select()
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.type, 'expense'),
-        gte(transactions.date, start),
-        lte(transactions.date, end),
-      ),
-    );
+  const conditions = [
+    eq(transactions.type, type),
+    gte(transactions.date, start),
+    lte(transactions.date, end),
+  ];
+  if (accountId) {
+    conditions.push(eq(transactions.accountId, accountId));
+  }
+  const typedTx = await db.select().from(transactions).where(and(...conditions));
 
-  const allCategories = await getCategories('expense');
+  const allCategories = await getCategories(type);
   const categoryMap = new Map(allCategories.map((c) => [c.id, c]));
 
+  let uncategorizedTotal = 0;
   const totals = new Map<string, number>();
-  for (const tx of expenseTx) {
-    if (!tx.categoryId) continue;
+
+  for (const tx of typedTx) {
+    if (!tx.categoryId) {
+      uncategorizedTotal += tx.amount;
+      continue;
+    }
     const cat = categoryMap.get(tx.categoryId);
     if (!cat) continue;
     const rollupId = cat.parentId ?? cat.id;
@@ -347,7 +362,7 @@ export async function getSpendingByCategory(
 
   if (parentId) {
     const subTotals = new Map<string, number>();
-    for (const tx of expenseTx) {
+    for (const tx of typedTx) {
       if (!tx.categoryId) continue;
       const cat = categoryMap.get(tx.categoryId);
       if (!cat || cat.parentId !== parentId) continue;
@@ -367,7 +382,7 @@ export async function getSpendingByCategory(
       .sort((a, b) => b.total - a.total);
   }
 
-  return Array.from(totals.entries())
+  const items = Array.from(totals.entries())
     .map(([categoryId, total]) => {
       const cat = categoryMap.get(categoryId)!;
       return {
@@ -380,6 +395,71 @@ export async function getSpendingByCategory(
     })
     .filter((item) => categoryMap.get(item.categoryId)?.parentId === null)
     .sort((a, b) => b.total - a.total);
+
+  if (uncategorizedTotal > 0) {
+    items.push({
+      categoryId: UNCATEGORIZED_CATEGORY_ID,
+      categoryName: 'Uncategorized',
+      color: UNCATEGORIZED_COLOR,
+      total: uncategorizedTotal,
+      parentId: null,
+    });
+    items.sort((a, b) => b.total - a.total);
+  }
+
+  return items;
+}
+
+export async function getSpendingByCategory(
+  start: number,
+  end: number,
+  parentId?: string | null,
+  accountId?: string,
+): Promise<CategorySpending[]> {
+  return getAmountByCategory('expense', start, end, parentId, accountId);
+}
+
+export async function getIncomeByCategory(
+  start: number,
+  end: number,
+  parentId?: string | null,
+  accountId?: string,
+): Promise<CategorySpending[]> {
+  return getAmountByCategory('income', start, end, parentId, accountId);
+}
+
+export async function getDailyTotals(
+  start: number,
+  end: number,
+  type: Extract<TransactionType, 'income' | 'expense'>,
+  accountId?: string,
+): Promise<{ day: string; total: number }[]> {
+  const db = getDb();
+  const conditions = [
+    eq(transactions.type, type),
+    gte(transactions.date, start),
+    lte(transactions.date, end),
+  ];
+  if (accountId) {
+    conditions.push(eq(transactions.accountId, accountId));
+  }
+  const rows = await db.select().from(transactions).where(and(...conditions));
+
+  const byDay = new Map<string, number>();
+  for (const tx of rows) {
+    const key = format(new Date(tx.date), 'yyyy-MM-dd');
+    byDay.set(key, (byDay.get(key) ?? 0) + tx.amount);
+  }
+
+  const result: { day: string; total: number }[] = [];
+  const cursor = startOfDay(new Date(start));
+  const endDate = startOfDay(new Date(end));
+  while (cursor <= endDate) {
+    const key = format(cursor, 'yyyy-MM-dd');
+    result.push({ day: key, total: byDay.get(key) ?? 0 });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return result;
 }
 
 export async function getDailyExpensesForMonth(year: number, month: number): Promise<{ day: number; total: number }[]> {

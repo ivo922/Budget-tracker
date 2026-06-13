@@ -9,7 +9,10 @@ import {
   startOfMonth,
   startOfWeek,
   startOfYear,
+  subDays,
   subMonths,
+  subWeeks,
+  subYears,
 } from 'date-fns';
 
 export type PeriodType = 'day' | 'week' | 'month' | 'year' | 'custom';
@@ -159,4 +162,91 @@ export function getDaysLeftInMonth(
 export function getCurrentCalendarMonth(): { year: number; month: number } {
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
+}
+
+export type AnalyticsPeriod =
+  | PeriodType
+  | 'last_3_months'
+  | 'last_6_months'
+  | 'last_year'
+  | 'all_time';
+
+export const ANALYTICS_QUICK_PERIODS: { value: PeriodType; label: string }[] = PERIOD_OPTIONS;
+
+export const ANALYTICS_EXTENDED_PERIODS: { value: AnalyticsPeriod; label: string }[] = [
+  { value: 'last_3_months', label: 'Last 3 months' },
+  { value: 'last_6_months', label: 'Last 6 months' },
+  { value: 'last_year', label: 'Last year' },
+  { value: 'all_time', label: 'All time' },
+];
+
+export function getAnalyticsPeriodRange(
+  period: AnalyticsPeriod,
+  referenceDate: Date = new Date(),
+): PeriodRange {
+  if (period === 'last_3_months' || period === 'last_6_months' || period === 'last_year' || period === 'all_time') {
+    return getDashboardPeriodRange(period, referenceDate);
+  }
+  return getPeriodRange(period, referenceDate);
+}
+
+export function formatAnalyticsPeriodSpan(range: PeriodRange): string {
+  if (range.start === 0) {
+    return `${range.label} · through ${format(new Date(range.end), 'MMM d, yyyy')}`;
+  }
+  const start = new Date(range.start);
+  const end = new Date(range.end);
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const sameMonth = sameYear && start.getMonth() === end.getMonth();
+  if (sameMonth) {
+    return `${range.label} · ${format(start, 'MMM d')}–${format(end, 'd, yyyy')}`;
+  }
+  if (sameYear) {
+    return `${range.label} · ${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`;
+  }
+  return `${range.label} · ${format(start, 'MMM d, yyyy')} – ${format(end, 'MMM d, yyyy')}`;
+}
+
+export function getPreviousAnalyticsPeriodRange(
+  period: AnalyticsPeriod,
+  referenceDate: Date = new Date(),
+): PeriodRange | null {
+  switch (period) {
+    case 'day': {
+      const range = getPeriodRange('day', subDays(referenceDate, 1));
+      return { ...range, label: 'Yesterday' };
+    }
+    case 'week': {
+      const range = getPeriodRange('week', subWeeks(referenceDate, 1));
+      return { ...range, label: 'Last week' };
+    }
+    case 'month': {
+      const range = getPeriodRange('month', subMonths(referenceDate, 1));
+      return { ...range, label: 'Last month' };
+    }
+    case 'year': {
+      const range = getPeriodRange('year', subYears(referenceDate, 1));
+      return { ...range, label: 'Last year' };
+    }
+    case 'last_3_months': {
+      const range = getAnalyticsPeriodRange('last_3_months', subMonths(referenceDate, 3));
+      return { ...range, label: 'Prior 3 months' };
+    }
+    case 'last_6_months': {
+      const range = getAnalyticsPeriodRange('last_6_months', subMonths(referenceDate, 6));
+      return { ...range, label: 'Prior 6 months' };
+    }
+    case 'last_year': {
+      const range = getAnalyticsPeriodRange('last_year', subMonths(referenceDate, 12));
+      return { ...range, label: 'Prior 12 months' };
+    }
+    case 'all_time':
+      return null;
+    case 'custom':
+      return null;
+  }
+}
+
+export function isTrendPeriod(period: AnalyticsPeriod): boolean {
+  return period === 'week' || period === 'month';
 }

@@ -193,19 +193,6 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        <View style={styles.actionsRow}>
-          <Button
-            mode="text"
-            icon="chart-line"
-            onPress={() => router.push('/analytics')}
-            compact
-            labelStyle={styles.headerActionLabel}
-            textColor={theme.colors.onSurface}
-          >
-            Analytics
-          </Button>
-        </View>
-
         <View style={styles.recentHeader}>
           <Text variant="titleMedium">Recent transactions</Text>
           <Button compact mode="text" onPress={() => router.push('/transactions')}>
@@ -235,20 +222,11 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: 8,
-  },
   budgetHint: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 12,
-  },
-  headerActionLabel: {
-    marginHorizontal: 0,
   },
   recentHeader: {
     flexDirection: 'row',
