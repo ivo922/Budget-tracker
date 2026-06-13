@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
-import { FormPopup } from '@/components/FormPopup';
-import { PopupSheet } from '@/components/PopupSheet';
+import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormScreen } from '@/components/FormScreen';
+import { FormTextInput } from '@/components/FormTextInput';
 import { useApp } from '@/lib/context/AppContext';
 import {
   getBudgetsForMonth,
@@ -11,24 +11,22 @@ import {
 } from '@/lib/db/queries';
 import type { Category } from '@/lib/db/schema';
 import { popupStyles } from '@/lib/popupStyles';
+import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
-  visible: boolean;
   year: number;
   month: number;
-  onDismiss: () => void;
+  onClose: () => void;
 };
 
-export function BudgetEditorDialog({ visible, year, month, onDismiss }: Props) {
+export function BudgetEditorForm({ year, month, onClose }: Props) {
   const { refresh } = useApp();
-  const [contentKey, setContentKey] = useState(0);
+  const theme = useAppTheme();
   const [categories, setCategories] = useState<Category[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!visible) return;
-    setContentKey((k) => k + 1);
     (async () => {
       const [parents, existing] = await Promise.all([
         getParentCategories('expense'),
@@ -41,7 +39,7 @@ export function BudgetEditorDialog({ visible, year, month, onDismiss }: Props) {
       }
       setAmounts(map);
     })();
-  }, [visible, year, month]);
+  }, [year, month]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -55,37 +53,32 @@ export function BudgetEditorDialog({ visible, year, month, onDismiss }: Props) {
     }
     setSaving(false);
     refresh();
-    onDismiss();
+    onClose();
   };
 
   return (
-    <FormPopup visible={visible} onClose={onDismiss} contentKey={contentKey}>
-      <PopupSheet
-        title="Monthly budgets"
-        onCancel={onDismiss}
-        onConfirm={handleSave}
-        confirmLoading={saving}
-      >
-        <Text variant="bodySmall" style={popupStyles.hint}>
-          Set planned amounts per expense category for this month.
-        </Text>
+    <FormScreen
+      title="Monthly budgets"
+      onCancel={onClose}
+      onConfirm={handleSave}
+      confirmLoading={saving}
+    >
+      <Text variant="bodySmall" style={[popupStyles.hint, { color: theme.colors.onSurfaceVariant }]}>
+        Set planned amounts per expense category for this month.
+      </Text>
+      <FormFieldGroup>
         {categories.map((cat) => (
-          <View key={cat.id} style={popupStyles.row}>
-            <Text variant="bodyMedium" style={popupStyles.label} numberOfLines={1}>
-              {cat.name}
-            </Text>
-            <TextInput
-              value={amounts[cat.id] ?? ''}
-              onChangeText={(v) => setAmounts((prev) => ({ ...prev, [cat.id]: v }))}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              dense
-              style={{ width: 120 }}
-              left={<TextInput.Affix text="$" />}
-            />
-          </View>
+          <FormTextInput
+            key={cat.id}
+            label={cat.name}
+            value={amounts[cat.id] ?? ''}
+            onChangeText={(v) => setAmounts((prev) => ({ ...prev, [cat.id]: v }))}
+            keyboardType="decimal-pad"
+            placeholder="0"
+            left={<TextInput.Affix text="$" />}
+          />
         ))}
-      </PopupSheet>
-    </FormPopup>
+      </FormFieldGroup>
+    </FormScreen>
   );
 }

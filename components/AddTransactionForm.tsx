@@ -1,9 +1,12 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
+import { FormFieldButton } from '@/components/FormFieldButton';
+import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormScreen } from '@/components/FormScreen';
+import { FormTextInput } from '@/components/FormTextInput';
 import { InlineSelect } from '@/components/InlineSelect';
-import { PopupSheet } from '@/components/PopupSheet';
 import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
 import {
@@ -14,7 +17,6 @@ import {
   getSubcategories,
 } from '@/lib/db/queries';
 import type { Account, Category, Goal, TransactionType } from '@/lib/db/schema';
-import { popupStyles } from '@/lib/popupStyles';
 import { useErrorStyle } from '@/lib/useAppTheme';
 
 type Props = {
@@ -143,7 +145,7 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
   };
 
   return (
-    <PopupSheet
+    <FormScreen
       title="Add transaction"
       onCancel={onClose}
       onConfirm={handleSave}
@@ -151,58 +153,74 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
     >
       <TransactionTypeSelector value={type} onChange={setType} />
 
-      <TextInput
-        label="Amount"
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="decimal-pad"
-        style={popupStyles.input}
-        left={<TextInput.Affix text="$" />}
-      />
-
-      {type === 'transfer' ? (
-        <>
-          <InlineSelect
-            label="From"
-            value={fromAccountId}
-            options={accountOptions}
-            onChange={(v) => setFromAccountId(v)}
-          />
-          <InlineSelect
-            label="To"
-            value={toAccountId}
-            options={accountOptions}
-            onChange={(v) => setToAccountId(v)}
-          />
-        </>
-      ) : (
-        <>
-          <InlineSelect
-            label="Account"
-            value={accountId}
-            options={accountOptions}
-            onChange={(v) => setAccountId(v)}
-          />
-          <InlineSelect
-            label="Category"
-            value={parentCategoryId}
-            options={parentCategories.map((c) => ({ value: c.id, label: c.name }))}
-            onChange={(v) => setParentCategoryId(v)}
-          />
-          {subcategories.length > 0 ? (
+      <FormFieldGroup>
+        <FormTextInput
+          label="Amount"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          left={<TextInput.Affix text="$" />}
+        />
+        {type === 'transfer' ? (
+          <>
             <InlineSelect
-              label="Subcategory"
-              value={categoryId}
-              options={subcategories.map((c) => ({ value: c.id, label: c.name }))}
-              onChange={(v) => setCategoryId(v)}
+              label="From"
+              value={fromAccountId}
+              options={accountOptions}
+              onChange={(v) => setFromAccountId(v)}
             />
-          ) : null}
-        </>
-      )}
+            <InlineSelect
+              label="To"
+              value={toAccountId}
+              options={accountOptions}
+              onChange={(v) => setToAccountId(v)}
+            />
+          </>
+        ) : (
+          <>
+            <InlineSelect
+              label="Account"
+              value={accountId}
+              options={accountOptions}
+              onChange={(v) => setAccountId(v)}
+            />
+            <InlineSelect
+              label="Category"
+              value={parentCategoryId}
+              options={parentCategories.map((c) => ({ value: c.id, label: c.name }))}
+              onChange={(v) => setParentCategoryId(v)}
+            />
+            {subcategories.length > 0 ? (
+              <InlineSelect
+                label="Subcategory"
+                value={categoryId}
+                options={subcategories.map((c) => ({ value: c.id, label: c.name }))}
+                onChange={(v) => setCategoryId(v)}
+              />
+            ) : null}
+          </>
+        )}
 
-      <Button mode="outlined" onPress={() => setShowDatePicker(true)}>
-        Date: {date.toLocaleDateString()}
-      </Button>
+        <FormFieldButton
+          label="Date"
+          value={date.toLocaleDateString()}
+          onPress={() => setShowDatePicker(true)}
+          icon="calendar-outline"
+        />
+
+        {type !== 'transfer' && goalList.length > 0 ? (
+          <InlineSelect
+            label="Goal"
+            value={goalId}
+            options={goalList.map((g) => ({ value: g.id, label: g.name }))}
+            onChange={setGoalId}
+            allowClear
+          />
+        ) : null}
+
+        <FormTextInput label="Note (optional)" value={note} onChangeText={setNote} />
+      </FormFieldGroup>
+
       {showDatePicker ? (
         <DateTimePicker
           value={date}
@@ -215,19 +233,7 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
         />
       ) : null}
 
-      {type !== 'transfer' && goalList.length > 0 ? (
-        <InlineSelect
-          label="Goal"
-          value={goalId}
-          options={goalList.map((g) => ({ value: g.id, label: g.name }))}
-          onChange={setGoalId}
-          allowClear
-        />
-      ) : null}
-
-      <TextInput label="Note (optional)" value={note} onChangeText={setNote} style={popupStyles.input} />
-
       {error ? <Text style={errorStyle}>{error}</Text> : null}
-    </PopupSheet>
+    </FormScreen>
   );
 }

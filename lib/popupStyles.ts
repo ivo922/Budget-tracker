@@ -1,36 +1,37 @@
 import { StyleSheet } from 'react-native';
 import { SCREEN_PADDING } from '@/lib/layout';
 
-/** Shared inner layout for FormPopup sheets (forms + confirmations). */
+/** Shared layout for full-screen form views. */
 export const popupStyles = StyleSheet.create({
   content: {
     padding: SCREEN_PADDING,
-    gap: 12,
+    gap: 14,
   },
   heading: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   hint: {
+    color: undefined,
     opacity: 0.8,
   },
   message: {
-    opacity: 0.9,
+    lineHeight: 22,
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 8,
-  },
-  input: {
-    marginTop: 4,
+    alignItems: 'center',
+    gap: 4,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   label: {
     flex: 1,
+    fontWeight: '600',
   },
 });

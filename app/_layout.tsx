@@ -23,9 +23,14 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="analytics" />
         <Stack.Screen name="account/[id]" />
+        <Stack.Screen name="account/add" />
         <Stack.Screen name="transactions/index" />
-        <Stack.Screen name="transaction/add" options={{ presentation: 'card' }} />
+        <Stack.Screen name="transaction/add" />
         <Stack.Screen name="transaction/[id]" />
+        <Stack.Screen name="goal/add" />
+        <Stack.Screen name="category/add" />
+        <Stack.Screen name="budgets/edit" />
+        <Stack.Screen name="confirm" />
         <Stack.Screen name="categories/index" />
       </Stack>
     </>

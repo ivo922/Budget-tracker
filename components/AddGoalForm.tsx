@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Text, TextInput } from 'react-native-paper';
+import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormScreen } from '@/components/FormScreen';
+import { FormTextInput } from '@/components/FormTextInput';
 import { GoalTypeSelector } from '@/components/GoalTypeSelector';
-import { PopupSheet } from '@/components/PopupSheet';
 import { useApp } from '@/lib/context/AppContext';
 import { createGoal } from '@/lib/db/queries';
 import type { GoalType } from '@/lib/db/schema';
-import { popupStyles } from '@/lib/popupStyles';
 import { useErrorStyle } from '@/lib/useAppTheme';
 
 type Props = {
@@ -51,31 +52,31 @@ export function AddGoalForm({ onClose, onSaved }: Props) {
   };
 
   return (
-    <PopupSheet
+    <FormScreen
       title="Add goal"
       onCancel={onClose}
       onConfirm={handleSave}
       confirmLoading={saving}
     >
       <GoalTypeSelector value={type} onChange={setType} />
-      <TextInput label="Name" value={name} onChangeText={setName} style={popupStyles.input} />
-      <TextInput
-        label="Target amount"
-        value={targetAmount}
-        onChangeText={setTargetAmount}
-        keyboardType="decimal-pad"
-        style={popupStyles.input}
-        left={<TextInput.Affix text="$" />}
-      />
-      <TextInput
-        label={type === 'loan' ? 'Already paid' : 'Already saved'}
-        value={startingBalance}
-        onChangeText={setStartingBalance}
-        keyboardType="decimal-pad"
-        style={popupStyles.input}
-        left={<TextInput.Affix text="$" />}
-      />
+      <FormFieldGroup>
+        <FormTextInput label="Name" value={name} onChangeText={setName} />
+        <FormTextInput
+          label="Target amount"
+          value={targetAmount}
+          onChangeText={setTargetAmount}
+          keyboardType="decimal-pad"
+          left={<TextInput.Affix text="$" />}
+        />
+        <FormTextInput
+          label={type === 'loan' ? 'Already paid' : 'Already saved'}
+          value={startingBalance}
+          onChangeText={setStartingBalance}
+          keyboardType="decimal-pad"
+          left={<TextInput.Affix text="$" />}
+        />
+      </FormFieldGroup>
       {error ? <Text style={errorStyle}>{error}</Text> : null}
-    </PopupSheet>
+    </FormScreen>
   );
 }

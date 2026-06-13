@@ -1,13 +1,12 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button, Text } from 'react-native-paper';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
-import { BudgetEditorDialog } from '@/components/BudgetEditorDialog';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
-import { SpendingDonut } from '@/components/SpendingDonut';
+import { MonthSummaryCard } from '@/components/MonthSummaryCard';
 import { buildTransactionDaySections } from '@/components/TransactionGroupedList';
 import { TransactionDayGroup } from '@/components/TransactionDayGroup';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
@@ -15,14 +14,14 @@ import { useApp } from '@/lib/context/AppContext';
 import {
   getAccountById,
   getCategoryById,
-  getSpendingByCategory,
-  getTotalNetBalance,
+  getPeriodSummary,
   getTransactions,
 } from '@/lib/db/queries';
-import type { CategorySpending } from '@/lib/db/queries';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
-import { getPeriodRange } from '@/lib/periods';
+import type { DashboardPeriod } from '@/lib/periods';
+import { getDashboardPeriodRange, getPeriodRange } from '@/lib/periods';
 import { layoutStyles } from '@/lib/layout';
+import { useAppTheme } from '@/lib/useAppTheme';
 
 type EnrichedTx = {
   tx: Transaction;
@@ -32,27 +31,36 @@ type EnrichedTx = {
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
   const { ready, refreshKey } = useApp();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
-  const [netBalance, setNetBalance] = useState(0);
-  const [spending, setSpending] = useState<CategorySpending[]>([]);
-  const [budgetDialogVisible, setBudgetDialogVisible] = useState(false);
+  const [period, setPeriod] = useState<DashboardPeriod>('this_month');
+  const [summary, setSummary] = useState({ income: 0, expense: 0 });
   const [recent, setRecent] = useState<EnrichedTx[]>([]);
   const [loading, setLoading] = useState(true);
   const recentSections = useMemo(() => buildTransactionDaySections(recent), [recent]);
 
   const monthRange = useMemo(() => getPeriodRange('month'), [refreshKey]);
 
+  const openBudgets = () => {
+    const d = new Date(monthRange.start);
+    router.push({
+      pathname: '/budgets/edit',
+      params: {
+        year: String(d.getFullYear()),
+        month: String(d.getMonth() + 1),
+      },
+    });
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
-    const now = Date.now();
-    const [net, spend, txs] = await Promise.all([
-      getTotalNetBalance(),
-      getSpendingByCategory(0, now),
+    const range = getDashboardPeriodRange(period);
+    const [periodSummary, txs] = await Promise.all([
+      getPeriodSummary(range.start, range.end),
       getTransactions({ limit: 5 }),
     ]);
-    setNetBalance(net);
-    setSpending(spend);
+    setSummary(periodSummary);
     const enriched = await Promise.all(
       txs.map(async (tx) => ({
         tx,
@@ -62,13 +70,11 @@ export default function DashboardScreen() {
     );
     setRecent(enriched);
     setLoading(false);
-  }, [refreshKey]);
+  }, [refreshKey, period]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (ready) load();
-    }, [ready, load]),
-  );
+  useEffect(() => {
+    if (ready) load();
+  }, [ready, load]);
 
   if (!ready || loading) {
     return (
@@ -80,23 +86,41 @@ export default function DashboardScreen() {
 
   return (
     <View style={layoutStyles.screen}>
-      <CollapsibleScreenHeader
-        title="Dashboard"
-        scrollY={scrollY}
-        headerHeight={headerHeight}
-        leftAction="budget"
-        onLeftPress={() => setBudgetDialogVisible(true)}
-      />
+      <CollapsibleScreenHeader title="Dashboard" scrollY={scrollY} headerHeight={headerHeight} />
       <Animated.ScrollView
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         contentContainerStyle={scrollContentStyle}
       >
-        <SpendingDonut
-          data={spending}
-          netAmount={netBalance}
-          onPress={() => router.push('/analytics')}
+        <MonthSummaryCard
+          period={period}
+          onPeriodChange={setPeriod}
+          income={summary.income}
+          expense={summary.expense}
         />
+
+        <View style={styles.actionsRow}>
+          <Button
+            mode="text"
+            icon="wallet-outline"
+            onPress={openBudgets}
+            compact
+            labelStyle={styles.headerActionLabel}
+            textColor={theme.colors.onSurface}
+          >
+            Budget
+          </Button>
+          <Button
+            mode="text"
+            icon="chart-line"
+            onPress={() => router.push('/analytics')}
+            compact
+            labelStyle={styles.headerActionLabel}
+            textColor={theme.colors.onSurface}
+          >
+            Analytics
+          </Button>
+        </View>
 
         <View style={styles.recentHeader}>
           <Text variant="titleMedium">Recent transactions</Text>
@@ -119,26 +143,25 @@ export default function DashboardScreen() {
         )}
       </Animated.ScrollView>
       <AddTransactionFab />
-      <BudgetEditorDialog
-        visible={budgetDialogVisible}
-        year={new Date(monthRange.start).getFullYear()}
-        month={new Date(monthRange.start).getMonth() + 1}
-        onDismiss={() => {
-          setBudgetDialogVisible(false);
-          load();
-        }}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  headerActionLabel: {
+    marginHorizontal: 0,
+  },
   recentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
     marginBottom: 4,
   },
   recentList: { gap: 0 },

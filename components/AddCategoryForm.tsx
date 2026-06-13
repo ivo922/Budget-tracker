@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { TextInput } from 'react-native-paper';
-import { PopupSheet } from '@/components/PopupSheet';
+import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormScreen } from '@/components/FormScreen';
+import { FormTextInput } from '@/components/FormTextInput';
 import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
 import { createCategory, getParentCategories } from '@/lib/db/queries';
 import type { Category, CategoryType } from '@/lib/db/schema';
-import { popupStyles } from '@/lib/popupStyles';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -40,7 +40,7 @@ export function AddCategoryForm({ mode, parent, onClose, onCreated }: Props) {
   };
 
   return (
-    <PopupSheet
+    <FormScreen
       title={mode === 'parent' ? 'New category' : `Subcategory of ${parent?.name}`}
       onCancel={onClose}
       onConfirm={handleCreate}
@@ -54,7 +54,9 @@ export function AddCategoryForm({ mode, parent, onClose, onCreated }: Props) {
           types={['expense', 'income']}
         />
       ) : null}
-      <TextInput label="Name" value={name} onChangeText={setName} style={popupStyles.input} />
-    </PopupSheet>
+      <FormFieldGroup>
+        <FormTextInput label="Name" value={name} onChangeText={setName} />
+      </FormFieldGroup>
+    </FormScreen>
   );
 }

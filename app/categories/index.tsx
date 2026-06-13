@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SectionList, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -9,20 +9,16 @@ import {
   List,
   Text,
 } from 'react-native-paper';
-import { AddCategoryForm } from '@/components/AddCategoryForm';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
-import { ConfirmPopup } from '@/components/ConfirmPopup';
-import { FormPopup } from '@/components/FormPopup';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import {
-  countTransactionsForCategory,
-  deleteCategory,
   getParentCategories,
   getSubcategories,
 } from '@/lib/db/queries';
 import type { Category } from '@/lib/db/schema';
 import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
+import { navigateToConfirm } from '@/lib/navigateConfirm';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type CategorySection = { title: string; data: Category[]; parent: Category };
@@ -33,18 +29,12 @@ const AnimatedSectionList = Animated.createAnimatedComponent(
 
 export default function CategoriesScreen() {
   const router = useRouter();
-  const { ready, refresh } = useApp();
+  const { ready } = useApp();
   const theme = useAppTheme();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
   const [sections, setSections] = useState<CategorySection[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [dialogVisible, setDialogVisible] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'parent' | 'child'>('parent');
-  const [parentForChild, setParentForChild] = useState<Category | null>(null);
-  const [formKey, setFormKey] = useState(0);
-  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
-  const [deleteError, setDeleteError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,40 +50,31 @@ export default function CategoriesScreen() {
     setLoading(false);
   }, [expanded]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (ready) load();
+    }, [ready, load]),
+  );
+
   useEffect(() => {
     if (ready) load();
   }, [ready, expanded, load]);
 
   const openAddParent = () => {
-    setDialogMode('parent');
-    setParentForChild(null);
-    setFormKey((k) => k + 1);
-    setDialogVisible(true);
+    router.push({ pathname: '/category/add', params: { mode: 'parent' } });
   };
 
   const openAddChild = (parent: Category) => {
-    setDialogMode('child');
-    setParentForChild(parent);
-    setFormKey((k) => k + 1);
-    setDialogVisible(true);
+    router.push({ pathname: '/category/add', params: { mode: 'child', parentId: parent.id } });
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const txCount = await countTransactionsForCategory(deleteTarget.id);
-    if (txCount > 0) {
-      setDeleteError('Cannot delete — category has transactions.');
-      return;
-    }
-    const result = await deleteCategory(deleteTarget.id);
-    if (!result.ok) {
-      setDeleteError(result.reason ?? 'Cannot delete');
-      return;
-    }
-    setDeleteTarget(null);
-    setDeleteError('');
-    refresh();
-    load();
+  const confirmDelete = (category: Category) => {
+    navigateToConfirm(router, {
+      type: 'category',
+      id: category.id,
+      title: `Delete ${category.name}?`,
+      message: 'This cannot be undone.',
+    });
   };
 
   const toggleExpand = (parentId: string) => {
@@ -174,10 +155,7 @@ export default function CategoriesScreen() {
                   icon="delete"
                   size={20}
                   style={styles.actionBtn}
-                  onPress={() => {
-                    setDeleteTarget(section.parent);
-                    setDeleteError('');
-                  }}
+                  onPress={() => confirmDelete(section.parent)}
                 />
               </View>
             )}
@@ -195,10 +173,7 @@ export default function CategoriesScreen() {
                 icon="delete"
                 size={18}
                 style={styles.actionBtn}
-                onPress={() => {
-                  setDeleteTarget(item);
-                  setDeleteError('');
-                }}
+                onPress={() => confirmDelete(item)}
               />
             )}
           />
@@ -206,29 +181,6 @@ export default function CategoriesScreen() {
         ListEmptyComponent={
           <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>No categories yet.</Text>
         }
-      />
-
-      <FormPopup visible={dialogVisible} onClose={() => setDialogVisible(false)} contentKey={formKey}>
-        <AddCategoryForm
-          mode={dialogMode}
-          parent={parentForChild}
-          onClose={() => setDialogVisible(false)}
-          onCreated={() => {
-            setDialogVisible(false);
-            load();
-          }}
-        />
-      </FormPopup>
-
-      <ConfirmPopup
-        visible={!!deleteTarget}
-        onClose={() => {
-          setDeleteTarget(null);
-          setDeleteError('');
-        }}
-        title={deleteTarget ? `Delete ${deleteTarget.name}?` : 'Delete category?'}
-        message={deleteError || 'This cannot be undone.'}
-        onConfirm={handleDelete}
       />
     </View>
   );

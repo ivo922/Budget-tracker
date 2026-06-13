@@ -10,16 +10,15 @@ import {
   TextInput,
 } from 'react-native-paper';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
-import { ConfirmPopup } from '@/components/ConfirmPopup';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
+import { navigateToConfirm } from '@/lib/navigateConfirm';
 import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
 import { useErrorStyle, useAppTheme } from '@/lib/useAppTheme';
 import { EmptyState } from '@/components/EmptyState';
 import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
 import {
-  deleteTransaction,
   getAccounts,
   getActiveGoals,
   getParentCategories,
@@ -52,7 +51,6 @@ export default function EditTransactionScreen() {
   const [parentCategoryId, setParentCategoryId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [error, setError] = useState('');
-  const [deleteVisible, setDeleteVisible] = useState(false);
   const [accountMenu, setAccountMenu] = useState(false);
   const [fromMenu, setFromMenu] = useState(false);
   const [toMenu, setToMenu] = useState(false);
@@ -168,12 +166,15 @@ export default function EditTransactionScreen() {
     router.back();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!id) return;
-    await deleteTransaction(id);
-    refresh();
-    setDeleteVisible(false);
-    router.back();
+    navigateToConfirm(router, {
+      type: 'transaction',
+      id,
+      title: 'Delete transaction?',
+      message: 'This action cannot be undone.',
+      dismiss: 2,
+    });
   };
 
   const accountName = (aid?: string) => accounts.find((a) => a.id === aid)?.name ?? 'Select';
@@ -253,17 +254,10 @@ export default function EditTransactionScreen() {
         <TextInput label="Note" value={note} onChangeText={setNote} />
         {error ? <Text style={errorStyle}>{error}</Text> : null}
         <View style={styles.actions}>
-          <Button mode="outlined" textColor={theme.colors.error} onPress={() => setDeleteVisible(true)}>Delete</Button>
+          <Button mode="outlined" textColor={theme.colors.error} onPress={handleDelete}>Delete</Button>
           <Button mode="contained" onPress={handleSave}>Save</Button>
         </View>
       </Animated.ScrollView>
-      <ConfirmPopup
-        visible={deleteVisible}
-        onClose={() => setDeleteVisible(false)}
-        title="Delete transaction?"
-        message="This action cannot be undone."
-        onConfirm={handleDelete}
-      />
     </View>
   );
 }
