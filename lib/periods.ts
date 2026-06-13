@@ -1,8 +1,10 @@
 import {
+  differenceInCalendarDays,
   endOfDay,
   endOfMonth,
   endOfWeek,
   endOfYear,
+  format,
   startOfDay,
   startOfMonth,
   startOfWeek,
@@ -120,4 +122,41 @@ export function getDashboardPeriodRange(
         label,
       };
   }
+}
+
+export function formatBudgetMonth(year: number, month: number): string {
+  return format(new Date(year, month - 1, 1), 'MMM yyyy');
+}
+
+export function getCalendarMonthRange(year: number, month: number): PeriodRange {
+  const date = new Date(year, month - 1, 1);
+  return getPeriodRange('month', date);
+}
+
+export function shiftCalendarMonth(
+  year: number,
+  month: number,
+  delta: number,
+): { year: number; month: number } {
+  const date = new Date(year, month - 1 + delta, 1);
+  return { year: date.getFullYear(), month: date.getMonth() + 1 };
+}
+
+export function getDaysLeftInMonth(
+  year: number,
+  month: number,
+  referenceDate: Date = new Date(),
+): number {
+  const monthStart = startOfMonth(new Date(year, month - 1, 1));
+  const monthEnd = endOfMonth(monthStart);
+  if (referenceDate < monthStart) {
+    return differenceInCalendarDays(monthEnd, monthStart) + 1;
+  }
+  if (referenceDate > monthEnd) return 0;
+  return differenceInCalendarDays(monthEnd, referenceDate) + 1;
+}
+
+export function getCurrentCalendarMonth(): { year: number; month: number } {
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }

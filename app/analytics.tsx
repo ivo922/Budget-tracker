@@ -11,10 +11,16 @@ import { SpendingChart } from '@/components/SpendingChart';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import {
+  getBudgetVsActual,
   getPeriodSummary,
   getSpendingByCategory,
+  type BudgetVsActual,
   type CategorySpending,
 } from '@/lib/db/queries';
+import {
+  getCalendarMonthRange,
+  getCurrentCalendarMonth,
+} from '@/lib/periods';
 
 export default function AnalyticsScreen() {
   const router = useRouter();
@@ -22,6 +28,7 @@ export default function AnalyticsScreen() {
   const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
   const [summary, setSummary] = useState({ income: 0, expense: 0, net: 0 });
   const [spending, setSpending] = useState<CategorySpending[]>([]);
+  const [budgetSummary, setBudgetSummary] = useState<BudgetVsActual | null>(null);
   const [drillParent, setDrillParent] = useState<string | null>(null);
   const [drillName, setDrillName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,8 +43,23 @@ export default function AnalyticsScreen() {
       drillParent ?? undefined,
     );
     setSpending(data);
+
+    if (period === 'month' && !drillParent) {
+      const current = getCurrentCalendarMonth();
+      const monthRange = getCalendarMonthRange(current.year, current.month);
+      const budget = await getBudgetVsActual(
+        current.year,
+        current.month,
+        monthRange.start,
+        monthRange.end,
+      );
+      setBudgetSummary(budget);
+    } else {
+      setBudgetSummary(null);
+    }
+
     setLoading(false);
-  }, [periodRange.start, periodRange.end, drillParent, refreshKey]);
+  }, [drillParent, period, periodRange.end, periodRange.start, refreshKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,7 +109,17 @@ export default function AnalyticsScreen() {
             ← Back to categories
           </Button>
         )}
-        <SpendingChart data={spending} onBarPress={handleBarPress} />
+        <SpendingChart
+          data={spending}
+          onBarPress={handleBarPress}
+          budgetItems={budgetSummary?.items}
+          onBudgetPress={(categoryId) =>
+            router.push({
+              pathname: '/budgets',
+              params: { categoryId },
+            })
+          }
+        />
 
         <Button mode="outlined" onPress={() => router.push('/categories')} style={styles.manage}>
           Manage categories

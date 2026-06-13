@@ -73,6 +73,7 @@ export type BudgetVsActualItem = {
 export type BudgetVsActual = {
   totalPlanned: number;
   totalSpent: number;
+  overBudgetCount: number;
   items: BudgetVsActualItem[];
 };
 
@@ -534,6 +535,36 @@ export async function deleteBudget(id: string): Promise<void> {
   await db.delete(budgets).where(eq(budgets.id, id));
 }
 
+export async function deleteBudgetForCategory(
+  categoryId: string,
+  year: number,
+  month: number,
+): Promise<void> {
+  const db = getDb();
+  await db
+    .delete(budgets)
+    .where(
+      and(
+        eq(budgets.categoryId, categoryId),
+        eq(budgets.year, year),
+        eq(budgets.month, month),
+      ),
+    );
+}
+
+export async function copyBudgetsFromMonth(
+  fromYear: number,
+  fromMonth: number,
+  toYear: number,
+  toMonth: number,
+): Promise<number> {
+  const source = await getBudgetsForMonth(fromYear, fromMonth);
+  for (const row of source) {
+    await upsertBudget(row.categoryId, toYear, toMonth, row.plannedAmount);
+  }
+  return source.length;
+}
+
 export async function getBudgetVsActual(
   year: number,
   month: number,
@@ -545,7 +576,7 @@ export async function getBudgetVsActual(
     getSpendingByCategory(start, end),
   ]);
 
-  const spentByCategory = new Map(spending.map((s) => [s.categoryId, s]));
+  const spentByCategory = new Map(spending.map((s) => [s.categoryId, s.total]));
   const allCategories = await getCategories('expense');
   const categoryMap = new Map(allCategories.map((c) => [c.id, c]));
 
@@ -556,12 +587,13 @@ export async function getBudgetVsActual(
       categoryName: cat?.name ?? 'Category',
       color: cat?.color ?? '#6750A4',
       planned: b.plannedAmount,
-      spent: spentByCategory.get(b.categoryId)?.total ?? 0,
+      spent: spentByCategory.get(b.categoryId) ?? 0,
     };
   });
 
   const totalPlanned = items.reduce((s, i) => s + i.planned, 0);
-  const totalSpent = spending.reduce((s, i) => s + i.total, 0);
+  const totalSpent = items.reduce((s, i) => s + i.spent, 0);
+  const overBudgetCount = items.filter((i) => i.planned > 0 && i.spent > i.planned).length;
 
-  return { totalPlanned, totalSpent, items };
+  return { totalPlanned, totalSpent, overBudgetCount, items };
 }

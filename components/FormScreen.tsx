@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react';
+import React, { type ReactNode, type RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Button, Divider } from 'react-native-paper';
@@ -18,6 +18,7 @@ type Props = {
   confirmLabel?: string;
   confirmLoading?: boolean;
   confirmDestructive?: boolean;
+  scrollRef?: RefObject<Animated.ScrollView | null>;
 };
 
 export function FormScreen({
@@ -29,6 +30,7 @@ export function FormScreen({
   confirmLabel = 'Save',
   confirmLoading = false,
   confirmDestructive = false,
+  scrollRef,
 }: Props) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -44,6 +46,7 @@ export function FormScreen({
         onLeftPress={onCancel}
       />
       <Animated.ScrollView
+        ref={scrollRef}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         contentContainerStyle={[scrollContentStyleNoFab, styles.scrollContent]}

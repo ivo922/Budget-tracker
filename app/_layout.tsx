@@ -29,6 +29,7 @@ function RootNavigator() {
         <Stack.Screen name="transaction/[id]" />
         <Stack.Screen name="goal/add" />
         <Stack.Screen name="category/add" />
+        <Stack.Screen name="budgets/index" />
         <Stack.Screen name="budgets/edit" />
         <Stack.Screen name="confirm" />
         <Stack.Screen name="categories/index" />
