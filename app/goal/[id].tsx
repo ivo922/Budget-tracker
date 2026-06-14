@@ -3,7 +3,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { ActivityIndicator, Button, Chip, IconButton, ProgressBar, Text } from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, ProgressBar, Text } from 'react-native-paper';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { GoalContributionChart } from '@/components/GoalContributionChart';
@@ -26,6 +26,7 @@ import type { GoalProgress, GoalStats, GoalTimelinePoint } from '@/lib/db/querie
 import type { Account } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
 import { computeGoalPace } from '@/lib/goalPace';
+import { HEADER_CONTENT_HEIGHT } from '@/lib/collapsibleHeader';
 import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { navigateToConfirm } from '@/lib/navigateConfirm';
 import { useAppTheme } from '@/lib/useAppTheme';
@@ -358,11 +359,14 @@ export default function GoalDetailScreen() {
         rightAction="more"
         onRightPress={() => setMenuVisible(true)}
       />
-      <View style={[styles.menuAnchor, { top: headerHeight - 48 }]}>
+      <View
+        style={[styles.menuAnchor, { top: headerHeight - HEADER_CONTENT_HEIGHT }]}
+        pointerEvents="none"
+      >
         <ThemedMenu
           visible={menuVisible}
           onDismiss={() => setMenuVisible(false)}
-          anchor={<IconButton icon="dots-vertical" onPress={() => setMenuVisible(true)} />}
+          anchor={<View style={styles.hiddenMenuAnchor} />}
         >
           <ThemedMenuItem
             title="Edit"
@@ -479,5 +483,6 @@ const styles = StyleSheet.create({
   contributionHeader: { gap: 8 },
   filterChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   sectionTitle: { fontWeight: '600', marginTop: 4 },
-  menuAnchor: { position: 'absolute', right: 4, zIndex: 20 },
+  menuAnchor: { position: 'absolute', right: 8, zIndex: 20 },
+  hiddenMenuAnchor: { width: 40, height: 40, opacity: 0 },
 });
