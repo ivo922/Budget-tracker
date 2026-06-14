@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   goal_id TEXT,
   note TEXT,
   date INTEGER NOT NULL,
+  paid INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL
 );
 `;

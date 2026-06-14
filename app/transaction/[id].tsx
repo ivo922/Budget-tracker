@@ -5,6 +5,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text, TextInput } from 'react-native-paper';
 import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormFieldSwitch } from '@/components/FormFieldSwitch';
 import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
 import { FormSection } from '@/components/FormSection';
@@ -39,6 +40,7 @@ export default function EditTransactionScreen() {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date());
+  const [paid, setPaid] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState<string | undefined>();
@@ -77,6 +79,7 @@ export default function EditTransactionScreen() {
       setAmount(String(tx.amount));
       setNote(tx.note ?? '');
       setDate(new Date(tx.date));
+      setPaid(tx.paid);
       setAccountId(tx.accountId ?? undefined);
       setFromAccountId(tx.fromAccountId ?? undefined);
       setToAccountId(tx.toAccountId ?? undefined);
@@ -195,6 +198,7 @@ export default function EditTransactionScreen() {
         goalId: goalId ?? null,
         note: note.trim() || null,
         date: date.getTime(),
+        paid,
       });
     } else {
       if (!accountId || !categoryId) {
@@ -212,6 +216,7 @@ export default function EditTransactionScreen() {
         goalId: goalId ?? null,
         note: note.trim() || null,
         date: date.getTime(),
+        paid,
       });
     }
     setSaving(false);
@@ -309,6 +314,10 @@ export default function EditTransactionScreen() {
           onPress={() => setShowDatePicker(true)}
           icon="calendar-outline"
         />
+
+        {type !== 'transfer' ? (
+          <FormFieldSwitch label="Paid" value={paid} onValueChange={setPaid} />
+        ) : null}
 
         {autoLinkedGoal ? (
           <View style={layoutStyles.formField}>

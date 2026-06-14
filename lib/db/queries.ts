@@ -1,5 +1,5 @@
 import * as Crypto from 'expo-crypto';
-import { differenceInMonths, endOfMonth, format, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
+import { differenceInMonths, endOfDay, endOfMonth, format, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
 import {
   and,
   asc,
@@ -39,6 +39,7 @@ export type TransactionFilters = {
   type?: TransactionType;
   categoryId?: string;
   uncategorized?: boolean;
+  paid?: boolean;
   start?: number;
   end?: number;
   limit?: number;
@@ -81,10 +82,19 @@ export type GoalStats = {
   transactionCount: number;
 };
 
+export function countsTowardBalance(tx: Pick<Transaction, 'type' | 'paid'>): boolean {
+  return tx.type === 'transfer' || tx.paid;
+}
+
+export function defaultPaidForDate(date: Date): boolean {
+  return date.getTime() <= endOfDay(new Date()).getTime();
+}
+
 export function signedGoalContribution(
-  tx: Pick<Transaction, 'type' | 'amount' | 'fromAccountId' | 'toAccountId' | 'accountId'>,
+  tx: Pick<Transaction, 'type' | 'amount' | 'fromAccountId' | 'toAccountId' | 'accountId' | 'paid'>,
   goal: Pick<Goal, 'type' | 'accountId'>,
 ): number {
+  if (tx.type !== 'transfer' && !tx.paid) return 0;
   if (goal.type === 'savings') {
     if (tx.type === 'income') return tx.amount;
     if (tx.type === 'expense') return -tx.amount;
@@ -431,12 +441,24 @@ export async function getAccountBalance(accountId: string): Promise<number> {
   const [incomeRow] = await db
     .select({ total: sum(transactions.amount) })
     .from(transactions)
-    .where(and(eq(transactions.accountId, accountId), eq(transactions.type, 'income')));
+    .where(
+      and(
+        eq(transactions.accountId, accountId),
+        eq(transactions.type, 'income'),
+        eq(transactions.paid, true),
+      ),
+    );
 
   const [expenseRow] = await db
     .select({ total: sum(transactions.amount) })
     .from(transactions)
-    .where(and(eq(transactions.accountId, accountId), eq(transactions.type, 'expense')));
+    .where(
+      and(
+        eq(transactions.accountId, accountId),
+        eq(transactions.type, 'expense'),
+        eq(transactions.paid, true),
+      ),
+    );
 
   const [transferInRow] = await db
     .select({ total: sum(transactions.amount) })
@@ -545,6 +567,7 @@ export async function getTransactions(filters: TransactionFilters = {}): Promise
   }
   if (filters.start) conditions.push(gte(transactions.date, filters.start));
   if (filters.end) conditions.push(lte(transactions.date, filters.end));
+  if (filters.paid !== undefined) conditions.push(eq(transactions.paid, filters.paid));
 
   let query = db.select().from(transactions).orderBy(desc(transactions.date), desc(transactions.createdAt));
   if (conditions.length > 0) {
@@ -581,6 +604,7 @@ export async function createTransaction(
     id: Crypto.randomUUID(),
     createdAt: Date.now(),
     goalId: resolvedGoalId,
+    paid: data.type === 'transfer' ? true : (data.paid ?? defaultPaidForDate(new Date(data.date))),
   };
   await db.insert(transactions).values(row);
   await syncGoalsForLinkedAccounts(data.accountId, data.fromAccountId, data.toAccountId);
@@ -622,7 +646,14 @@ export async function updateTransaction(
     });
   }
 
-  await db.update(transactions).set({ ...data, goalId }).where(eq(transactions.id, id));
+  await db
+    .update(transactions)
+    .set({
+      ...data,
+      goalId,
+      paid: mergedType === 'transfer' ? true : (data.paid ?? old.paid),
+    })
+    .where(eq(transactions.id, id));
 
   await syncGoalsForLinkedAccounts(
     old.accountId,
@@ -665,8 +696,8 @@ export async function getPeriodSummary(
   let income = 0;
   let expense = 0;
   for (const tx of rows) {
-    if (tx.type === 'income') income += tx.amount;
-    if (tx.type === 'expense') expense += tx.amount;
+    if (tx.type === 'income' && tx.paid) income += tx.amount;
+    if (tx.type === 'expense' && tx.paid) expense += tx.amount;
   }
   return { income, expense, net: income - expense };
 }
@@ -681,6 +712,7 @@ async function getAmountByCategory(
   const db = getDb();
   const conditions = [
     eq(transactions.type, type),
+    eq(transactions.paid, true),
     gte(transactions.date, start),
     lte(transactions.date, end),
   ];
@@ -783,6 +815,7 @@ export async function getDailyTotals(
   const db = getDb();
   const conditions = [
     eq(transactions.type, type),
+    eq(transactions.paid, true),
     gte(transactions.date, start),
     lte(transactions.date, end),
   ];
@@ -818,6 +851,7 @@ export async function getDailyExpensesForMonth(year: number, month: number): Pro
     .where(
       and(
         eq(transactions.type, 'expense'),
+        eq(transactions.paid, true),
         gte(transactions.date, start),
         lte(transactions.date, end),
       ),

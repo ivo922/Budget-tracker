@@ -15,13 +15,14 @@ export type DaySection<T> = {
   data: T[];
 };
 
-export function transactionNetAmount(tx: Pick<Transaction, 'type' | 'amount'>): number {
+export function transactionNetAmount(tx: Pick<Transaction, 'type' | 'amount' | 'paid'>): number {
+  if (tx.type !== 'transfer' && !tx.paid) return 0;
   if (tx.type === 'income') return tx.amount;
   if (tx.type === 'expense') return -tx.amount;
   return 0;
 }
 
-export function dayNetTotal(txs: Pick<Transaction, 'type' | 'amount'>[]): number {
+export function dayNetTotal(txs: Pick<Transaction, 'type' | 'amount' | 'paid'>[]): number {
   return txs.reduce((sum, tx) => sum + transactionNetAmount(tx), 0);
 }
 

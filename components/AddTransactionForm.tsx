@@ -4,6 +4,7 @@ import { Platform, View } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormFieldSwitch } from '@/components/FormFieldSwitch';
 import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
 import { FormSection } from '@/components/FormSection';
@@ -13,6 +14,7 @@ import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
 import {
   createTransaction,
+  defaultPaidForDate,
   getAccounts,
   getActiveGoalByAccountId,
   getActiveGoals,
@@ -37,6 +39,7 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date());
+  const [paid, setPaid] = useState(() => defaultPaidForDate(new Date()));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState<string | undefined>();
@@ -128,6 +131,10 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
     });
   }, [accountId, fromAccountId, toAccountId, type]);
 
+  useEffect(() => {
+    setPaid(defaultPaidForDate(date));
+  }, [date]);
+
   const manualGoalOptions = useMemo(() => {
     if (autoLinkedGoal) return [];
     const filtered = goalList.filter((g) => {
@@ -190,6 +197,7 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
         goalId: goalId ?? null,
         note: note.trim() || null,
         date: date.getTime(),
+        paid,
       });
     }
 
@@ -264,6 +272,10 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
           onPress={() => setShowDatePicker(true)}
           icon="calendar-outline"
         />
+
+        {type !== 'transfer' ? (
+          <FormFieldSwitch label="Paid" value={paid} onValueChange={setPaid} />
+        ) : null}
 
         {type !== 'transfer' && autoLinkedGoal ? (
           <View style={layoutStyles.formField}>

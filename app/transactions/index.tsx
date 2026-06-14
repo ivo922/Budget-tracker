@@ -39,19 +39,23 @@ import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 function FiltersHeader({
   filterAccount,
   filterType,
+  filterUnpaid,
   accounts,
   menuVisible,
   setMenuVisible,
   setFilterAccount,
   setFilterType,
+  setFilterUnpaid,
 }: {
   filterAccount?: string;
   filterType?: 'income' | 'expense' | 'transfer';
+  filterUnpaid: boolean;
   accounts: Account[];
   menuVisible: boolean;
   setMenuVisible: (v: boolean) => void;
   setFilterAccount: (id: string | undefined) => void;
   setFilterType: (t: 'income' | 'expense' | 'transfer' | undefined) => void;
+  setFilterUnpaid: (v: boolean) => void;
 }) {
   return (
     <View style={styles.filters}>
@@ -92,6 +96,14 @@ function FiltersHeader({
           onPress={() => setFilterType(filterType === t ? undefined : t)}
         />
       ))}
+      <Chip
+        icon="clock-outline"
+        selected={filterUnpaid}
+        onPress={() => setFilterUnpaid(!filterUnpaid)}
+        showSelectedCheck={false}
+      >
+        Unpaid
+      </Chip>
     </View>
   );
 }
@@ -110,6 +122,7 @@ export default function AllTransactionsScreen() {
   const [loading, setLoading] = useState(true);
   const [filterAccount, setFilterAccount] = useState<string | undefined>();
   const [filterType, setFilterType] = useState<'income' | 'expense' | 'transfer' | undefined>();
+  const [filterUnpaid, setFilterUnpaid] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
@@ -119,6 +132,7 @@ export default function AllTransactionsScreen() {
     const [txs, goalRows] = await Promise.all([getTransactions({
       accountId: filterAccount,
       type: filterType,
+      paid: filterUnpaid ? false : undefined,
     }), getGoals()]);
     const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
     const enriched = await Promise.all(
@@ -136,7 +150,7 @@ export default function AllTransactionsScreen() {
     const sections = buildTransactionDaySections(enriched);
     setActiveMonth(sections[0]?.monthKey ?? null);
     setLoading(false);
-  }, [filterAccount, filterType, refreshKey]);
+  }, [filterAccount, filterType, filterUnpaid, refreshKey]);
 
   const daySections = useMemo(() => buildTransactionDaySections(items), [items]);
 
@@ -213,15 +227,17 @@ export default function AllTransactionsScreen() {
         <FiltersHeader
           filterAccount={filterAccount}
           filterType={filterType}
+          filterUnpaid={filterUnpaid}
           accounts={accounts}
           menuVisible={menuVisible}
           setMenuVisible={setMenuVisible}
           setFilterAccount={setFilterAccount}
           setFilterType={setFilterType}
+          setFilterUnpaid={setFilterUnpaid}
         />
       </View>
     ),
-    [filterAccount, filterType, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
+    [filterAccount, filterType, filterUnpaid, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
   );
 
   useEffect(() => {

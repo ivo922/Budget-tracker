@@ -52,6 +52,7 @@ export const transactions = sqliteTable('transactions', {
   goalId: text('goal_id'),
   note: text('note'),
   date: integer('date').notNull(),
+  paid: integer('paid', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull(),
 });
 

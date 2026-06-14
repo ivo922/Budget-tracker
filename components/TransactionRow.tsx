@@ -43,6 +43,7 @@ export function TransactionRow({
   const typeColors = useTransactionTheme(transaction.type);
   const isIncome = transaction.type === 'income';
   const isExpense = transaction.type === 'expense';
+  const isUnpaid = transaction.type !== 'transfer' && !transaction.paid;
   const prefix = isIncome ? '+' : isExpense ? '-' : '';
 
   let title = transaction.note || format(new Date(transaction.date), 'HH:mm');
@@ -104,6 +105,11 @@ export function TransactionRow({
         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={1}>
           {description}
         </Text>
+        {isUnpaid ? (
+          <Chip compact mode="outlined" style={styles.unpaidChip} textStyle={styles.unpaidChipText}>
+            Unpaid
+          </Chip>
+        ) : null}
         {goalName && goalId ? (
           <Pressable
             onPress={(e) => {
@@ -156,6 +162,8 @@ const styles = StyleSheet.create({
   },
   body: layoutStyles.rowBody,
   title: { fontWeight: '600' },
+  unpaidChip: { alignSelf: 'flex-start', marginTop: 2 },
+  unpaidChipText: { fontSize: 11 },
   goalChip: { alignSelf: 'flex-start', marginTop: 2 },
   amount: { fontWeight: '600', fontVariant: ['tabular-nums'] },
 });
