@@ -18,7 +18,15 @@ import {
 } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
+import {
+  BORDER_RADIUS,
+  CARD_GAP,
+  CARD_INNER_GAP,
+  CARD_PADDING,
+  layoutStyles,
+  ROW_BODY_GAP,
+  SCREEN_PADDING,
+} from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 export default function AccountDetailScreen() {
@@ -102,7 +110,7 @@ export default function AccountDetailScreen() {
         <View
           style={[
             styles.heroCard,
-            { borderColor: account.color, backgroundColor: theme.colors.surface },
+            { borderColor: theme.colors.outline, backgroundColor: theme.colors.surface },
           ]}
         >
           <Text variant="titleLarge" style={{ fontWeight: '700' }}>
@@ -137,10 +145,7 @@ export default function AccountDetailScreen() {
             style={[
               styles.goalCard,
               {
-                borderColor:
-                  linkedGoalProgress.goal.status === 'completed'
-                    ? theme.colors.outline
-                    : theme.colors.income,
+                borderColor: theme.colors.outline,
                 backgroundColor: theme.colors.surface,
                 opacity: linkedGoalProgress.goal.status === 'completed' ? 0.85 : 1,
               },
@@ -172,7 +177,12 @@ export default function AccountDetailScreen() {
           </Pressable>
         ) : null}
 
-        <View style={[styles.actionsCard, { backgroundColor: theme.colors.surface }]}>
+        <View
+          style={[
+            styles.actionsCard,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+          ]}
+        >
           <Text variant="titleMedium" style={styles.actionsTitle}>
             Account settings
           </Text>
@@ -201,30 +211,31 @@ export default function AccountDetailScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { flexGrow: 1, gap: 12, paddingBottom: SCREEN_PADDING },
+  scroll: { flexGrow: 1, gap: CARD_GAP, paddingBottom: SCREEN_PADDING },
   heroCard: {
-    padding: 16,
+    padding: CARD_PADDING,
     borderRadius: BORDER_RADIUS,
-    borderWidth: 2,
-    gap: 4,
+    borderWidth: 1,
+    gap: ROW_BODY_GAP,
   },
-  heroMeta: { gap: 2, marginTop: 4 },
+  heroMeta: { gap: ROW_BODY_GAP, marginTop: CARD_INNER_GAP },
   goalCard: {
-    padding: 16,
+    padding: CARD_PADDING,
     borderRadius: BORDER_RADIUS,
-    borderWidth: 2,
-    gap: 6,
+    borderWidth: 1,
+    gap: CARD_INNER_GAP,
   },
   goalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  bar: { height: 8, borderRadius: BORDER_RADIUS },
+  bar: layoutStyles.progressBar,
   actionsCard: {
-    padding: 16,
+    padding: CARD_PADDING,
     borderRadius: BORDER_RADIUS,
-    gap: 10,
+    borderWidth: 1,
+    gap: CARD_INNER_GAP,
   },
   actionsTitle: { fontWeight: '600' },
   actionButton: { alignSelf: 'stretch' },

@@ -49,7 +49,7 @@ import {
   isTrendPeriod,
   type AnalyticsPeriod,
 } from '@/lib/periods';
-import { layoutStyles } from '@/lib/layout';
+import { CARD_GAP, layoutStyles, SECTION_GAP } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type EnrichedTx = {
@@ -338,13 +338,15 @@ export default function AnalyticsScreen() {
           }}
         />
 
-        <AnalyticsPeriodPicker
-          value={period}
-          onChange={(next) => {
-            setPeriod(next);
-            resetDrill();
-          }}
-        />
+        <View style={styles.periodPicker}>
+          <AnalyticsPeriodPicker
+            value={period}
+            onChange={(next) => {
+              setPeriod(next);
+              resetDrill();
+            }}
+          />
+        </View>
 
         {loading ? (
           <AnalyticsSkeleton />
@@ -420,7 +422,8 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1 },
-  section: { marginTop: 8, marginBottom: 8, fontWeight: '600' },
-  manage: { marginTop: 24 },
+  periodPicker: { marginBottom: CARD_GAP },
+  section: { marginTop: CARD_GAP, marginBottom: CARD_GAP, fontWeight: '600' },
+  manage: { marginTop: SECTION_GAP },
   txList: { gap: 0 },
 });

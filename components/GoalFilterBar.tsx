@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Chip } from 'react-native-paper';
 import type { Goal } from '@/lib/db/schema';
-import { SCREEN_PADDING } from '@/lib/layout';
+import { CARD_GAP } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 export type GoalListFilter = 'all' | 'active' | 'completed';
@@ -73,8 +73,7 @@ export function matchesGoalFilter(
 const styles = StyleSheet.create({
   row: {
     gap: 8,
-    marginBottom: 12,
-    paddingHorizontal: SCREEN_PADDING,
+    marginBottom: CARD_GAP,
   },
   chips: {
     flexDirection: 'row',

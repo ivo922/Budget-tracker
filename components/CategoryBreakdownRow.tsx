@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { CategorySpending } from '@/lib/db/queries';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { BORDER_RADIUS, PILL_PADDING_H, PILL_PADDING_V } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -24,7 +24,7 @@ export function CategoryBreakdownRow({ data }: Props) {
         return (
           <View
             key={item.categoryId}
-            style={[styles.chip, { backgroundColor: theme.colors.surface, borderColor: item.color }]}
+            style={[styles.chip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
           >
             <View style={[styles.dot, { backgroundColor: item.color }]} />
             <View style={styles.chipText}>
@@ -48,12 +48,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: PILL_PADDING_H,
+    paddingVertical: PILL_PADDING_V,
     borderRadius: BORDER_RADIUS,
-    borderWidth: 2,
+    borderWidth: 1,
     maxWidth: 160,
   },
-  dot: { width: 10, height: 10, borderRadius: BORDER_RADIUS },
+  dot: { width: 10, height: 10, borderRadius: 5 },
   chipText: { flexShrink: 1 },
 });

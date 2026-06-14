@@ -16,7 +16,7 @@ import {
   type BudgetVsActual,
 } from '@/lib/db/queries';
 import { formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS, layoutStyles } from '@/lib/layout';
+import { BORDER_RADIUS, CARD_GAP, CARD_PADDING, layoutStyles } from '@/lib/layout';
 import {
   formatBudgetMonth,
   getCalendarMonthRange,
@@ -271,12 +271,12 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+    gap: CARD_GAP,
+    marginBottom: CARD_PADDING,
   },
   list: {
-    gap: 10,
-    paddingBottom: 16,
+    gap: CARD_GAP,
+    paddingBottom: CARD_PADDING,
   },
   setupButton: {
     alignSelf: 'flex-start',

@@ -4,7 +4,13 @@ import { PieChart } from 'react-native-gifted-charts';
 import { ProgressBar, Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { BudgetVsActualItem, CategorySpending } from '@/lib/db/queries';
-import { BORDER_RADIUS } from '@/lib/layout';
+import {
+  CARD_INNER_GAP,
+  layoutStyles,
+  PROGRESS_BAR_HEIGHT,
+  ROW_PADDING_H,
+  ROW_PADDING_V,
+} from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 const DONUT_TOP_N = 6;
@@ -14,11 +20,19 @@ type Props = {
   item: CategorySpending;
   total: number;
   budget?: BudgetVsActualItem;
+  grouped?: boolean;
   onPress?: () => void;
   onBudgetPress?: () => void;
 };
 
-export function CategorySpendingRow({ item, total, budget, onPress, onBudgetPress }: Props) {
+export function CategorySpendingRow({
+  item,
+  total,
+  budget,
+  grouped = false,
+  onPress,
+  onBudgetPress,
+}: Props) {
   const theme = useAppTheme();
   const percent = total > 0 ? Math.round((item.total / total) * 100) : 0;
   const progress = total > 0 ? item.total / total : 0;
@@ -62,22 +76,25 @@ export function CategorySpendingRow({ item, total, budget, onPress, onBudgetPres
     </>
   );
 
+  const rowStyle = grouped
+    ? [styles.groupedRow, { backgroundColor: theme.colors.surface }]
+    : [
+        styles.standaloneRow,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+      ];
+
   if (!onPress) {
-    return (
-      <View style={[styles.row, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
-        {content}
-      </View>
-    );
+    return <View style={rowStyle}>{content}</View>;
   }
 
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.row,
-        {
+        ...rowStyle,
+        grouped && pressed ? { backgroundColor: theme.colors.surfaceElevated } : null,
+        !grouped && {
           backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.surface,
-          borderColor: theme.colors.outline,
         },
       ]}
     >
@@ -153,11 +170,17 @@ export function SpendingDonut({ data, totalLabel, onSlicePress }: DonutProps) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    borderRadius: BORDER_RADIUS,
+  standaloneRow: {
+    borderRadius: layoutStyles.card.borderRadius,
     borderWidth: 1,
-    padding: 14,
-    gap: 8,
+    paddingHorizontal: ROW_PADDING_H,
+    paddingVertical: ROW_PADDING_V,
+    gap: CARD_INNER_GAP,
+  },
+  groupedRow: {
+    paddingHorizontal: ROW_PADDING_H,
+    paddingVertical: ROW_PADDING_V,
+    gap: CARD_INNER_GAP,
   },
   header: {
     flexDirection: 'row',
@@ -174,7 +197,7 @@ const styles = StyleSheet.create({
   },
   dot: { width: 10, height: 10, borderRadius: 5 },
   name: { flex: 1, fontWeight: '600' },
-  bar: { height: 6, borderRadius: BORDER_RADIUS },
+  bar: layoutStyles.progressBar,
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

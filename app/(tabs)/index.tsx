@@ -37,7 +37,7 @@ import {
   getDashboardPeriodRange,
 } from '@/lib/periods';
 import { computeGoalPace } from '@/lib/goalPace';
-import { layoutStyles } from '@/lib/layout';
+import { CARD_GAP, layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type EnrichedTx = {
@@ -294,18 +294,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: CARD_GAP,
   },
   recentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: CARD_GAP,
   },
   carouselActions: {
     alignItems: 'flex-end',
-    marginTop: -4,
-    marginBottom: 4,
+    marginTop: 8,
+    marginBottom: CARD_GAP,
   },
   recentList: { gap: 0 },
   listLoader: { marginVertical: 24 },

@@ -2,7 +2,13 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS } from '@/lib/layout';
+import {
+  BORDER_RADIUS,
+  CARD_GAP,
+  CARD_INNER_GAP,
+  PILL_PADDING_H,
+  PILL_PADDING_V,
+} from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -64,9 +70,9 @@ const styles = StyleSheet.create({
     minWidth: 100,
     borderWidth: 1,
     borderRadius: BORDER_RADIUS,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
+    paddingHorizontal: PILL_PADDING_H,
+    paddingVertical: PILL_PADDING_V,
+    gap: CARD_INNER_GAP / 2,
   },
   compactPill: {
     flex: 1,
@@ -75,8 +81,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderRadius: BORDER_RADIUS,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: CARD_INNER_GAP + 8,
+    paddingVertical: PILL_PADDING_V,
     minWidth: 0,
   },
   fullWidth: {

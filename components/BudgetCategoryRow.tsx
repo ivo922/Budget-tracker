@@ -3,7 +3,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ProgressBar, Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { BudgetVsActualItem } from '@/lib/db/queries';
-import { BORDER_RADIUS } from '@/lib/layout';
+import {
+  BORDER_RADIUS,
+  CARD_INNER_GAP,
+  layoutStyles,
+  ROW_PADDING_H,
+  ROW_PADDING_V,
+} from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -95,8 +101,9 @@ const styles = StyleSheet.create({
   row: {
     borderRadius: BORDER_RADIUS,
     borderWidth: 1,
-    padding: 14,
-    gap: 8,
+    paddingHorizontal: ROW_PADDING_H,
+    paddingVertical: ROW_PADDING_V,
+    gap: CARD_INNER_GAP,
   },
   header: {
     flexDirection: 'row',
@@ -120,8 +127,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontWeight: '600',
   },
-  bar: {
-    height: 6,
-    borderRadius: BORDER_RADIUS,
-  },
+  bar: layoutStyles.progressBar,
 });

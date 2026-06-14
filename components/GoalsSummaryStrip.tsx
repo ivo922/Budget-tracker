@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { GoalCard } from '@/components/GoalCard';
 import type { GoalProgress } from '@/lib/db/queries';
-import { SCREEN_PADDING } from '@/lib/layout';
+import { CARD_GAP, SCREEN_PADDING, SECTION_GAP } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type GoalListItem = GoalProgress & {
@@ -60,12 +60,12 @@ export function GoalsSummaryStrip({ items }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 16 },
+  wrap: { marginBottom: SECTION_GAP },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: CARD_GAP,
   },
   scroll: {
     gap: 12,

@@ -3,7 +3,12 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS } from '@/lib/layout';
+import {
+  BORDER_RADIUS,
+  CARD_GAP,
+  PILL_PADDING_H,
+  PILL_PADDING_V,
+} from '@/lib/layout';
 import {
   DASHBOARD_PERIOD_OPTIONS,
   type DashboardPeriod,
@@ -115,8 +120,8 @@ export function MonthSummaryCard({ period, onPeriodChange, income, expense }: Pr
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: 8,
-    marginBottom: 12,
+    gap: CARD_GAP,
+    marginBottom: CARD_GAP,
   },
   wrap: { zIndex: 1 },
   wrapOpen: { zIndex: 20 },
@@ -126,8 +131,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderRadius: BORDER_RADIUS,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: PILL_PADDING_H,
+    paddingVertical: PILL_PADDING_V,
     overflow: 'hidden',
   },
   periodText: {
@@ -143,8 +148,8 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
   },
   option: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: PILL_PADDING_H,
+    paddingVertical: PILL_PADDING_V,
   },
   optionText: {
     fontWeight: '600',

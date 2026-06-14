@@ -11,7 +11,7 @@ import { GoalFilterBar, matchesGoalFilter, type GoalListFilter } from '@/compone
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import { computeGoalPace } from '@/lib/goalPace';
-import { layoutStyles } from '@/lib/layout';
+import { CARD_GAP, layoutStyles } from '@/lib/layout';
 import {
   getAccountBalance,
   getAccountById,
@@ -180,5 +180,5 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyScroll: { flexGrow: 1 },
   emptyActions: { gap: 12, paddingHorizontal: 16, marginTop: 8 },
-  cardWrap: { marginBottom: 12 },
+  cardWrap: { marginBottom: CARD_GAP },
 });

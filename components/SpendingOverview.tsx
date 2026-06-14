@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { SegmentedButtons, Text } from 'react-native-paper';
+import { Divider, SegmentedButtons, Text } from 'react-native-paper';
 import { CategorySpendingRow, SpendingDonut } from '@/components/CategorySpendingRow';
 import type { BudgetVsActualItem, CategorySpending } from '@/lib/db/queries';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { CARD_PADDING, CARD_GAP, layoutStyles, SECTION_GAP } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 export type CategoryViewMode = 'expense' | 'income';
@@ -46,7 +46,12 @@ export function SpendingOverview({
       />
 
       {data.length === 0 ? (
-        <View style={[styles.empty, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+        <View
+          style={[
+            styles.empty,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+          ]}
+        >
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
             {emptyCopy}
           </Text>
@@ -61,18 +66,29 @@ export function SpendingOverview({
             />
           ) : null}
 
-          <View style={styles.list}>
-            {data.map((item) => (
-              <CategorySpendingRow
-                key={item.categoryId}
-                item={item}
-                total={total}
-                budget={mode === 'expense' ? budgetMap.get(item.categoryId) : undefined}
-                onPress={onCategoryPress ? () => onCategoryPress(item) : undefined}
-                onBudgetPress={
-                  onBudgetPress ? () => onBudgetPress(item.categoryId) : undefined
-                }
-              />
+          <View
+            style={[
+              layoutStyles.groupedListCard,
+              styles.list,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+            ]}
+          >
+            {data.map((item, index) => (
+              <View key={item.categoryId}>
+                <CategorySpendingRow
+                  item={item}
+                  total={total}
+                  grouped
+                  budget={mode === 'expense' ? budgetMap.get(item.categoryId) : undefined}
+                  onPress={onCategoryPress ? () => onCategoryPress(item) : undefined}
+                  onBudgetPress={
+                    onBudgetPress ? () => onBudgetPress(item.categoryId) : undefined
+                  }
+                />
+                {index < data.length - 1 ? (
+                  <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
+                ) : null}
+              </View>
             ))}
           </View>
         </>
@@ -82,13 +98,13 @@ export function SpendingOverview({
 }
 
 const styles = StyleSheet.create({
-  wrapper: { gap: 12 },
-  segmented: { marginBottom: 4 },
+  wrapper: { gap: SECTION_GAP },
+  segmented: {},
   empty: {
     borderWidth: 1,
-    borderRadius: BORDER_RADIUS,
-    padding: 24,
+    borderRadius: layoutStyles.card.borderRadius,
+    padding: CARD_PADDING,
     alignItems: 'center',
   },
-  list: { gap: 8 },
+  list: { marginBottom: 0 },
 });

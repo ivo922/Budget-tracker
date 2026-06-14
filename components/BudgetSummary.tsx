@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, ProgressBar, Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { BudgetVsActual } from '@/lib/db/queries';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { CARD_GAP, CARD_INNER_GAP, layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 import { BudgetCategoryRow } from '@/components/BudgetCategoryRow';
 
@@ -129,11 +129,8 @@ export function BudgetSummary({ summary, monthLabel, onPress, onEdit, onSetup }:
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: BORDER_RADIUS,
-    borderWidth: 1,
-    padding: 16,
-    gap: 8,
-    marginBottom: 12,
+    ...layoutStyles.card,
+    marginBottom: CARD_GAP,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -141,6 +138,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: { fontWeight: '600' },
-  bar: { height: 8, borderRadius: BORDER_RADIUS },
-  rows: { gap: 8, marginTop: 4 },
+  bar: layoutStyles.progressBar,
+  rows: { gap: CARD_INNER_GAP, marginTop: CARD_INNER_GAP / 2 },
 });

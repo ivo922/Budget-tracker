@@ -4,17 +4,14 @@ import {
   StyleSheet,
   View,
   type SectionListProps,
-  type SectionListRenderItem,
   type ViewStyle,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { Divider } from 'react-native-paper';
 import { TransactionDayHeader } from '@/components/TransactionDayHeader';
-import { TransactionRow } from '@/components/TransactionRow';
+import { TransactionDayRows } from '@/components/TransactionDayGroup';
 import { groupByDay } from '@/lib/groupTransactions';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { CARD_GAP } from '@/lib/layout';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
-import { useAppTheme } from '@/lib/useAppTheme';
 
 export type TransactionListItem = {
   tx: Transaction;
@@ -35,6 +32,13 @@ export type TransactionDaySection = {
   data: TransactionListItem[];
 };
 
+type SectionPlaceholder = { key: string };
+
+export type TransactionGroupedSection = Omit<TransactionDaySection, 'data'> & {
+  transactions: TransactionListItem[];
+  data: SectionPlaceholder[];
+};
+
 export function buildTransactionDaySections(items: TransactionListItem[]): TransactionDaySection[] {
   const withDate = items.map((item) => ({ ...item, date: item.tx.date }));
   return groupByDay(withDate).map((g) => ({
@@ -46,6 +50,17 @@ export function buildTransactionDaySections(items: TransactionListItem[]): Trans
   }));
 }
 
+function buildGroupedSections(items: TransactionListItem[]): TransactionGroupedSection[] {
+  return buildTransactionDaySections(items).map((section) => ({
+    key: section.key,
+    monthKey: section.monthKey,
+    title: section.title,
+    total: section.total,
+    transactions: section.data,
+    data: [{ key: section.key }],
+  }));
+}
+
 type Props = {
   items: TransactionListItem[];
   onPressItem: (id: string) => void;
@@ -54,7 +69,7 @@ type Props = {
   contentContainerStyle?: ViewStyle;
   stickySectionHeadersEnabled?: boolean;
 } & Pick<
-  SectionListProps<TransactionListItem, TransactionDaySection>,
+  SectionListProps<SectionPlaceholder, TransactionGroupedSection>,
   | 'extraData'
   | 'onScroll'
   | 'scrollEventThrottle'
@@ -65,11 +80,11 @@ type Props = {
 >;
 
 const AnimatedSectionList = Animated.createAnimatedComponent(
-  SectionList<TransactionListItem, TransactionDaySection>,
+  SectionList<SectionPlaceholder, TransactionGroupedSection>,
 );
 
 export const TransactionGroupedList = forwardRef<
-  SectionList<TransactionListItem, TransactionDaySection>,
+  SectionList<SectionPlaceholder, TransactionGroupedSection>,
   Props
 >(function TransactionGroupedList(
   {
@@ -83,56 +98,34 @@ export const TransactionGroupedList = forwardRef<
   },
   ref,
 ) {
-  const theme = useAppTheme();
-  const sections = useMemo(() => buildTransactionDaySections(items), [items]);
-
-  const renderItem: SectionListRenderItem<TransactionListItem, TransactionDaySection> = ({
-    item,
-    index,
-    section,
-  }) => {
-    if (!item?.tx) return null;
-    const isFirst = index === 0;
-    const isLast = index === section.data.length - 1;
-
-    return (
-      <View
-        style={[
-          styles.dayCard,
-          { backgroundColor: theme.colors.surface },
-          isFirst && styles.dayCardFirst,
-          isLast && styles.dayCardLast,
-        ]}
-      >
-        <TransactionRow
-          transaction={item.tx}
-          account={item.account}
-          category={item.category}
-          fromAccount={item.fromAccount}
-          toAccount={item.toAccount}
-          goalName={item.goalName}
-          goalId={item.goalId}
-          goalContribution={item.goalContribution}
-          onPress={() => onPressItem(item.tx.id)}
-          onPressGoal={onPressGoal}
-        />
-        {!isLast ? <Divider style={{ backgroundColor: theme.colors.outlineVariant }} /> : null}
-      </View>
-    );
-  };
+  const sections = useMemo(() => buildGroupedSections(items), [items]);
 
   return (
     <AnimatedSectionList
       ref={ref}
       sections={sections}
-      keyExtractor={(item, index) => item?.tx?.id ?? `tx-row-${index}`}
+      keyExtractor={(item) => item.key}
       renderSectionHeader={({ section }) => (
         <TransactionDayHeader
           title={section.title}
           total={showDayTotals ? section.total : undefined}
         />
       )}
-      renderItem={renderItem}
+      renderItem={({ section }) => (
+        <View style={styles.sectionItem}>
+          <TransactionDayRows
+            section={{
+              key: section.key,
+              monthKey: section.monthKey,
+              title: section.title,
+              total: section.total,
+              data: section.transactions,
+            }}
+            onPressItem={onPressItem}
+            onPressGoal={onPressGoal}
+          />
+        </View>
+      )}
       stickySectionHeadersEnabled={stickySectionHeadersEnabled}
       contentContainerStyle={contentContainerStyle}
       {...listProps}
@@ -141,16 +134,5 @@ export const TransactionGroupedList = forwardRef<
 });
 
 const styles = StyleSheet.create({
-  dayCard: {
-    overflow: 'hidden',
-  },
-  dayCardFirst: {
-    borderTopLeftRadius: BORDER_RADIUS,
-    borderTopRightRadius: BORDER_RADIUS,
-  },
-  dayCardLast: {
-    borderBottomLeftRadius: BORDER_RADIUS,
-    borderBottomRightRadius: BORDER_RADIUS,
-    marginBottom: 12,
-  },
+  sectionItem: { marginBottom: CARD_GAP },
 });

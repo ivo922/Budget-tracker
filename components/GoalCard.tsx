@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Chip, ProgressBar, Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { GoalProgress } from '@/lib/db/queries';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { BORDER_RADIUS, CARD_INNER_GAP, CARD_PADDING, layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -152,12 +152,12 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BORDER_RADIUS,
     borderWidth: 1,
-    padding: 16,
-    gap: 8,
+    padding: CARD_PADDING,
+    gap: CARD_INNER_GAP,
   },
   cardCompact: {
-    padding: 12,
-    gap: 6,
+    padding: CARD_PADDING - 4,
+    gap: CARD_INNER_GAP - 2,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconWrap: {
@@ -167,6 +167,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bar: { height: 8, borderRadius: BORDER_RADIUS },
+  bar: layoutStyles.progressBar,
   linkChip: { alignSelf: 'flex-start' },
 });

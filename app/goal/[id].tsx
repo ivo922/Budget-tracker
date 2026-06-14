@@ -27,7 +27,17 @@ import type { Account } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
 import { computeGoalPace } from '@/lib/goalPace';
 import { HEADER_CONTENT_HEIGHT } from '@/lib/collapsibleHeader';
-import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
+import {
+  BORDER_RADIUS,
+  CARD_GAP,
+  CARD_INNER_GAP,
+  CARD_PADDING,
+  layoutStyles,
+  PILL_PADDING_H,
+  PILL_PADDING_V,
+  ROW_BODY_GAP,
+  SCREEN_PADDING,
+} from '@/lib/layout';
 import { navigateToConfirm } from '@/lib/navigateConfirm';
 import { useAppTheme } from '@/lib/useAppTheme';
 
@@ -209,7 +219,7 @@ export default function GoalDetailScreen() {
               style={[
                 styles.accountCard,
                 {
-                  borderColor: linkedAccount.color,
+                  borderColor: theme.colors.outline,
                   backgroundColor: theme.colors.surface,
                 },
               ]}
@@ -254,7 +264,10 @@ export default function GoalDetailScreen() {
         ) : !isLoan && goal.status === 'active' ? (
           <Pressable
             onPress={() => router.push(`/goal/link/${goal.id}`)}
-            style={[styles.hintCard, { backgroundColor: theme.colors.surfaceVariant }]}
+            style={[
+              styles.hintCard,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+            ]}
           >
             <View style={styles.hintRow}>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
@@ -268,13 +281,23 @@ export default function GoalDetailScreen() {
             </View>
           </Pressable>
         ) : !isLoan ? (
-          <View style={[styles.hintCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <View
+            style={[
+              styles.hintCard,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+            ]}
+          >
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
               Link an account to auto-track transactions toward this goal.
             </Text>
           </View>
         ) : isLoan && goal.status === 'active' ? (
-          <View style={[styles.hintCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <View
+            style={[
+              styles.hintCard,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+            ]}
+          >
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
               Link expense transactions when adding payments to track loan payoff.
             </Text>
@@ -423,7 +446,12 @@ export default function GoalDetailScreen() {
 function StatPill({ label, value }: { label: string; value: string }) {
   const theme = useAppTheme();
   return (
-    <View style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+    <View
+      style={[
+        styles.statPill,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+      ]}
+    >
       <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
         {label}
       </Text>
@@ -438,51 +466,55 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyScroll: { flexGrow: 1, paddingBottom: SCREEN_PADDING },
   addTx: { marginHorizontal: SCREEN_PADDING, marginTop: 8 },
-  headerBlock: { gap: 12, marginBottom: 8 },
+  headerBlock: { gap: CARD_GAP, marginBottom: CARD_GAP },
   heroCard: {
-    padding: 16,
+    padding: CARD_PADDING,
     borderRadius: BORDER_RADIUS,
     borderWidth: 1,
-    gap: 8,
+    gap: CARD_INNER_GAP,
   },
-  bar: { height: 8, borderRadius: BORDER_RADIUS },
+  bar: layoutStyles.progressBar,
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: CARD_INNER_GAP,
   },
   statPill: {
     flexGrow: 1,
     flexBasis: '45%',
-    padding: 10,
+    paddingHorizontal: PILL_PADDING_H,
+    paddingVertical: PILL_PADDING_V,
     borderRadius: BORDER_RADIUS,
-    gap: 2,
+    borderWidth: 1,
+    gap: ROW_BODY_GAP,
   },
   accountSection: { gap: 0 },
   accountCard: {
-    padding: 16,
+    padding: CARD_PADDING,
     borderRadius: BORDER_RADIUS,
-    borderWidth: 2,
-    gap: 4,
+    borderWidth: 1,
+    gap: ROW_BODY_GAP,
   },
   accountCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  changeAccountButton: { alignSelf: 'flex-start', marginTop: -4 },
+  changeAccountButton: { alignSelf: 'flex-start', marginTop: 0 },
   hintCard: {
-    padding: 12,
+    paddingHorizontal: PILL_PADDING_H,
+    paddingVertical: PILL_PADDING_V,
     borderRadius: BORDER_RADIUS,
+    borderWidth: 1,
   },
   hintRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: CARD_INNER_GAP,
   },
-  contributionHeader: { gap: 8 },
-  filterChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  sectionTitle: { fontWeight: '600', marginTop: 4 },
+  contributionHeader: { gap: CARD_INNER_GAP },
+  filterChips: { flexDirection: 'row', flexWrap: 'wrap', gap: CARD_INNER_GAP },
+  sectionTitle: { fontWeight: '600', marginTop: CARD_INNER_GAP },
   menuAnchor: { position: 'absolute', right: 8, zIndex: 20 },
   hiddenMenuAnchor: { width: 40, height: 40, opacity: 0 },
 });

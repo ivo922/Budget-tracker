@@ -13,6 +13,7 @@ import {
   buildTransactionDaySections,
   TransactionGroupedList,
   type TransactionDaySection,
+  type TransactionGroupedSection,
   type TransactionListItem,
 } from '@/components/TransactionGroupedList';
 import { TransactionTypeChip } from '@/components/TransactionTypeChip';
@@ -101,7 +102,7 @@ export default function AllTransactionsScreen() {
   const insets = useSafeAreaInsets();
   const { ready, refreshKey } = useApp();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
-  const listRef = useRef<SectionList<TransactionListItem, TransactionDaySection>>(null);
+  const listRef = useRef<SectionList<{ key: string }, TransactionGroupedSection>>(null);
   const suppressViewabilityRef = useRef(false);
   const [islandHeight, setIslandHeight] = useState(MONTH_NAV_BAR_FALLBACK_HEIGHT);
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
@@ -188,10 +189,10 @@ export default function AllTransactionsScreen() {
   );
 
   const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken<TransactionListItem>[] }) => {
+    ({ viewableItems }: { viewableItems: ViewToken<{ key: string }>[] }) => {
       if (suppressViewabilityRef.current || viewableItems.length === 0) return;
       const top = viewableItems.find((v) => v.isViewable) ?? viewableItems[0];
-      const section = top.section as SectionListData<TransactionListItem, TransactionDaySection> | undefined;
+      const section = top.section as SectionListData<{ key: string }, TransactionGroupedSection> | undefined;
       if (!section?.monthKey) return;
 
       setActiveMonth(section.monthKey);

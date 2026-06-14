@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Chip, Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
+import { layoutStyles } from '@/lib/layout';
 import { useAppTheme, useTransactionTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -135,13 +136,7 @@ export function TransactionRow({
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
+  row: layoutStyles.row,
   iconWrap: {
     width: 40,
     height: 40,
@@ -159,7 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderWidth: 2,
   },
-  body: { flex: 1, gap: 2, minWidth: 0 },
+  body: layoutStyles.rowBody,
   title: { fontWeight: '600' },
   goalChip: { alignSelf: 'flex-start', marginTop: 2 },
   amount: { fontWeight: '600', fontVariant: ['tabular-nums'] },

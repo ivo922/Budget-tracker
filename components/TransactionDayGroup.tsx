@@ -4,8 +4,38 @@ import { Divider } from 'react-native-paper';
 import { TransactionDayHeader } from '@/components/TransactionDayHeader';
 import { TransactionRow } from '@/components/TransactionRow';
 import type { TransactionDaySection, TransactionListItem } from '@/components/TransactionGroupedList';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { CARD_GAP, layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
+
+type RowsProps = {
+  section: TransactionDaySection;
+  onPressItem: (id: string) => void;
+  onPressGoal?: (goalId: string) => void;
+};
+
+export function TransactionDayRows({ section, onPressItem, onPressGoal }: RowsProps) {
+  const theme = useAppTheme();
+
+  return (
+    <View
+      style={[
+        layoutStyles.groupedListCard,
+        styles.card,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+      ]}
+    >
+      {section.data.map((item, index) => (
+        <TransactionDayGroupRow
+          key={item.tx.id}
+          item={item}
+          isLast={index === section.data.length - 1}
+          onPress={() => onPressItem(item.tx.id)}
+          onPressGoal={onPressGoal}
+        />
+      ))}
+    </View>
+  );
+}
 
 type Props = {
   section: TransactionDaySection;
@@ -15,25 +45,13 @@ type Props = {
 };
 
 export function TransactionDayGroup({ section, onPressItem, onPressGoal, showDayTotal = true }: Props) {
-  const theme = useAppTheme();
-
   return (
-    <View>
+    <View style={styles.group}>
       <TransactionDayHeader
         title={section.title}
         total={showDayTotal ? section.total : undefined}
       />
-      <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-        {section.data.map((item, index) => (
-          <TransactionDayGroupRow
-            key={item.tx.id}
-            item={item}
-            isLast={index === section.data.length - 1}
-            onPress={() => onPressItem(item.tx.id)}
-            onPressGoal={onPressGoal}
-          />
-        ))}
-      </View>
+      <TransactionDayRows section={section} onPressItem={onPressItem} onPressGoal={onPressGoal} />
     </View>
   );
 }
@@ -70,9 +88,6 @@ function TransactionDayGroupRow({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: BORDER_RADIUS,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
+  group: { marginBottom: CARD_GAP },
+  card: { marginBottom: 0 },
 });

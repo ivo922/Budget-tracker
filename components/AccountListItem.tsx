@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { Account } from '@/lib/db/schema';
+import { layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -26,18 +27,26 @@ export function AccountListItem({ account, onPress, onDelete }: Props) {
       onPress={onPress}
       onLongPress={onDelete}
       style={({ pressed }) => [
-        styles.row,
+        layoutStyles.row,
         { backgroundColor: pressed ? theme.colors.surfaceElevated : 'transparent' },
       ]}
     >
-      <View style={[styles.iconWrap, { backgroundColor: `${account.color}20` }]}>
+      <View
+        style={[
+          styles.iconWrap,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outline,
+          },
+        ]}
+      >
         <MaterialCommunityIcons name="wallet-outline" size={20} color={account.color} />
         <View
           style={[styles.colorDot, { backgroundColor: account.color, borderColor: theme.colors.surface }]}
         />
       </View>
 
-      <View style={styles.body}>
+      <View style={layoutStyles.rowBody}>
         <Text variant="bodyLarge" style={styles.title} numberOfLines={1}>
           {account.name}
         </Text>
@@ -54,17 +63,11 @@ export function AccountListItem({ account, onPress, onDelete }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
   iconWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -77,7 +80,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderWidth: 2,
   },
-  body: { flex: 1, gap: 2, minWidth: 0 },
   title: { fontWeight: '600' },
   balance: { fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

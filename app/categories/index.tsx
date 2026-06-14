@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Button,
+  Divider,
   IconButton,
   List,
   Text,
@@ -17,14 +18,21 @@ import {
   getSubcategories,
 } from '@/lib/db/queries';
 import type { Category } from '@/lib/db/schema';
-import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
+import { CARD_GAP, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { navigateToConfirm } from '@/lib/navigateConfirm';
 import { useAppTheme } from '@/lib/useAppTheme';
 
-type CategorySection = { title: string; data: Category[]; parent: Category };
+type CategoryGroupRow = { key: string };
+
+type CategorySection = {
+  title: string;
+  parent: Category;
+  children: Category[];
+  data: CategoryGroupRow[];
+};
 
 const AnimatedSectionList = Animated.createAnimatedComponent(
-  SectionList<Category, CategorySection>,
+  SectionList<CategoryGroupRow, CategorySection>,
 );
 
 export default function CategoriesScreen() {
@@ -40,11 +48,15 @@ export default function CategoriesScreen() {
     setLoading(true);
     const parents = await getParentCategories();
     const built: CategorySection[] = await Promise.all(
-      parents.map(async (parent) => ({
-        title: parent.name,
-        parent,
-        data: expanded[parent.id] ? await getSubcategories(parent.id) : [],
-      })),
+      parents.map(async (parent) => {
+        const children = expanded[parent.id] ? await getSubcategories(parent.id) : [];
+        return {
+          title: parent.name,
+          parent,
+          children,
+          data: children.length > 0 ? [{ key: `${parent.id}-children` }] : [],
+        };
+      }),
     );
     setSections(built);
     setLoading(false);
@@ -116,7 +128,7 @@ export default function CategoriesScreen() {
       />
       <AnimatedSectionList
         sections={sections}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.key}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         contentContainerStyle={scrollContentStyleNoFab}
@@ -130,7 +142,7 @@ export default function CategoriesScreen() {
               styles.parentRow,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: section.parent.color,
+                borderColor: theme.colors.outline,
               },
             ]}
             contentStyle={styles.parentContent}
@@ -161,22 +173,38 @@ export default function CategoriesScreen() {
             )}
           />
         )}
-        renderItem={({ item }) => (
-          <List.Item
-            title={item.name}
-            style={[styles.child, { backgroundColor: theme.colors.surfaceElevated }]}
-            contentStyle={styles.childContent}
-            titleStyle={[styles.childTitle, { color: theme.colors.onSurface }]}
-            left={(props) => <List.Icon {...props} icon="label" color={item.color} style={styles.childIcon} />}
-            right={() => (
-              <IconButton
-                icon="delete"
-                size={18}
-                style={styles.actionBtn}
-                onPress={() => confirmDelete(item)}
-              />
-            )}
-          />
+        renderItem={({ section }) => (
+          <View
+            style={[
+              layoutStyles.groupedListCard,
+              styles.childGroup,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+            ]}
+          >
+            {section.children.map((item, index) => (
+              <View key={item.id}>
+                <List.Item
+                  title={item.name}
+                  contentStyle={styles.childContent}
+                  titleStyle={[styles.childTitle, { color: theme.colors.onSurface }]}
+                  left={(props) => (
+                    <List.Icon {...props} icon="label" color={item.color} style={styles.childIcon} />
+                  )}
+                  right={() => (
+                    <IconButton
+                      icon="delete"
+                      size={18}
+                      style={styles.actionBtn}
+                      onPress={() => confirmDelete(item)}
+                    />
+                  )}
+                />
+                {index < section.children.length - 1 ? (
+                  <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
+                ) : null}
+              </View>
+            ))}
+          </View>
         )}
         ListEmptyComponent={
           <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>No categories yet.</Text>
@@ -191,29 +219,25 @@ const styles = StyleSheet.create({
   addWrap: { paddingBottom: SCREEN_PADDING },
   parentRow: {
     borderWidth: 1,
-    borderRadius: BORDER_RADIUS,
-    marginBottom: 8,
+    borderRadius: layoutStyles.card.borderRadius,
+    marginBottom: CARD_GAP,
   },
   parentContent: {
     paddingLeft: SCREEN_PADDING,
     paddingRight: 8,
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
-  child: {
-    marginLeft: SCREEN_PADDING,
-    marginRight: 0,
-    marginBottom: 4,
-    borderRadius: BORDER_RADIUS,
-    minHeight: 40,
+  childGroup: {
+    marginBottom: CARD_GAP,
   },
   childContent: {
     paddingLeft: 12,
     paddingRight: 4,
-    paddingVertical: 0,
+    paddingVertical: 4,
   },
   childTitle: {
     fontSize: 14,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   childIcon: {
     marginLeft: 0,

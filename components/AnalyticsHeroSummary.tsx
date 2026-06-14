@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { BalanceCard } from '@/components/BalanceCard';
 import { formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { BORDER_RADIUS, CARD_GAP, PILL_PADDING_H, PILL_PADDING_V } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -77,14 +77,14 @@ export function AnalyticsHeroSummary({
 }
 
 const styles = StyleSheet.create({
-  wrapper: { gap: 8, marginBottom: 8 },
+  wrapper: { gap: CARD_GAP, marginBottom: CARD_GAP },
   totalsPill: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: BORDER_RADIUS,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: PILL_PADDING_H,
+    paddingVertical: PILL_PADDING_V,
     gap: 12,
   },
   total: {
