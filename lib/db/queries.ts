@@ -104,7 +104,17 @@ export type BudgetVsActual = {
 
 export async function getAccounts(): Promise<Account[]> {
   const db = getDb();
-  return db.select().from(accounts).orderBy(asc(accounts.name));
+  return db
+    .select()
+    .from(accounts)
+    .orderBy(asc(accounts.sortOrder), asc(accounts.name));
+}
+
+export async function reorderAccounts(orderedIds: string[]): Promise<void> {
+  const db = getDb();
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db.update(accounts).set({ sortOrder: i }).where(eq(accounts.id, orderedIds[i]));
+  }
 }
 
 export async function getAccountById(id: string): Promise<Account | undefined> {
@@ -115,10 +125,13 @@ export async function getAccountById(id: string): Promise<Account | undefined> {
 
 export async function createAccount(data: Omit<NewAccount, 'id' | 'createdAt'>): Promise<Account> {
   const db = getDb();
+  const existing = await getAccounts();
+  const maxOrder = existing.reduce((max, account) => Math.max(max, account.sortOrder), -1);
   const row: NewAccount = {
     id: Crypto.randomUUID(),
     createdAt: Date.now(),
     ...data,
+    sortOrder: data.sortOrder ?? maxOrder + 1,
   };
   await db.insert(accounts).values(row);
   return row as Account;

@@ -134,6 +134,20 @@ export default function DashboardScreen() {
   }, [ready, load]);
 
   const hasAccounts = slides.some((slide) => slide.id && !isAddAccountSlide(slide));
+  const accountCount = slides.filter((slide) => slide.id && !isAddAccountSlide(slide)).length;
+  const selectedSlide = slides[selectedIndex];
+  const selectedAccountId = accountFilterForSlide(selectedSlide);
+
+  const openAllTransactions = () => {
+    if (selectedAccountId) {
+      router.push({
+        pathname: '/transactions',
+        params: { accountId: selectedAccountId },
+      });
+      return;
+    }
+    router.push('/transactions');
+  };
 
   if (!ready || (loading && slides.length === 0)) {
     return (
@@ -164,6 +178,19 @@ export default function DashboardScreen() {
             if (slide.id) router.push(`/account/${slide.id}`);
           }}
         />
+
+        {accountCount > 1 ? (
+          <View style={styles.carouselActions}>
+            <Button
+              compact
+              mode="text"
+              icon="swap-vertical"
+              onPress={() => router.push('/account/reorder')}
+            >
+              Reorder accounts
+            </Button>
+          </View>
+        ) : null}
 
         {!hasAccounts ? (
           <EmptyState
@@ -200,7 +227,7 @@ export default function DashboardScreen() {
 
         <View style={styles.recentHeader}>
           <Text variant="titleMedium">Recent transactions</Text>
-          <Button compact mode="text" onPress={() => router.push('/transactions')}>
+          <Button compact mode="text" onPress={openAllTransactions}>
             View all
           </Button>
         </View>
@@ -237,6 +264,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  carouselActions: {
+    alignItems: 'flex-end',
+    marginTop: -4,
     marginBottom: 4,
   },
   recentList: { gap: 0 },

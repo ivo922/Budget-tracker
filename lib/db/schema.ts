@@ -5,6 +5,7 @@ export const accounts = sqliteTable('accounts', {
   name: text('name').notNull(),
   color: text('color').notNull().default('#6750A4'),
   initialBalance: real('initial_balance').notNull().default(0),
+  sortOrder: integer('sort_order').notNull().default(0),
   createdAt: integer('created_at').notNull(),
 });
 

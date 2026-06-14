@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#6750A4',
   initial_balance REAL NOT NULL DEFAULT 0,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
 

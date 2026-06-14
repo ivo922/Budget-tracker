@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, type SectionList, type SectionListData, type ViewToken } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
@@ -97,6 +97,7 @@ function FiltersHeader({
 
 export default function AllTransactionsScreen() {
   const router = useRouter();
+  const { accountId: routeAccountId } = useLocalSearchParams<{ accountId?: string }>();
   const insets = useSafeAreaInsets();
   const { ready, refreshKey } = useApp();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
@@ -112,10 +113,12 @@ export default function AllTransactionsScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
 
+  const effectiveAccountFilter = filterAccount ?? routeAccountId;
+
   const load = useCallback(async () => {
     setLoading(true);
     const [txs, goalRows] = await Promise.all([getTransactions({
-      accountId: filterAccount,
+      accountId: effectiveAccountFilter,
       type: filterType,
     }), getGoals()]);
     const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
@@ -133,7 +136,7 @@ export default function AllTransactionsScreen() {
     const sections = buildTransactionDaySections(enriched);
     setActiveMonth(sections[0]?.monthKey ?? null);
     setLoading(false);
-  }, [filterAccount, filterType, refreshKey]);
+  }, [effectiveAccountFilter, filterType, refreshKey]);
 
   const daySections = useMemo(() => buildTransactionDaySections(items), [items]);
 
@@ -208,7 +211,7 @@ export default function AllTransactionsScreen() {
       >
         {showMonthIsland ? <View style={{ height: islandSpacerHeight }} /> : null}
         <FiltersHeader
-          filterAccount={filterAccount}
+          filterAccount={effectiveAccountFilter}
           filterType={filterType}
           accounts={accounts}
           menuVisible={menuVisible}
@@ -218,16 +221,18 @@ export default function AllTransactionsScreen() {
         />
       </View>
     ),
-    [filterAccount, filterType, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
+    [effectiveAccountFilter, filterType, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
   );
 
   useFocusEffect(
     useCallback(() => {
-      if (ready) {
-        getAccounts().then(setAccounts);
-        load();
+      if (!ready) return;
+      getAccounts().then(setAccounts);
+      if (routeAccountId) {
+        setFilterAccount(routeAccountId);
       }
-    }, [ready, load]),
+      load();
+    }, [ready, load, routeAccountId]),
   );
 
   if (!ready || loading) {

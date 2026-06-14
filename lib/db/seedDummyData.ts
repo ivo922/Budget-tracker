@@ -53,13 +53,19 @@ async function ensureAccounts(db: AppDatabase): Promise<{ id: string }[]> {
   if (existing.length >= 2) return existing;
 
   const now = Date.now();
-  const toCreate: { id: string; name: string; color: string; initialBalance: number; createdAt: number }[] =
-    [];
+  const toCreate: {
+    id: string;
+    name: string;
+    color: string;
+    initialBalance: number;
+    sortOrder: number;
+    createdAt: number;
+  }[] = [];
 
   if (existing.length === 0) {
     toCreate.push(
-      { id: Crypto.randomUUID(), name: 'Checking', color: ACCOUNT_COLORS[0], initialBalance: 2500, createdAt: now },
-      { id: Crypto.randomUUID(), name: 'Savings', color: ACCOUNT_COLORS[4], initialBalance: 8000, createdAt: now },
+      { id: Crypto.randomUUID(), name: 'Checking', color: ACCOUNT_COLORS[0], initialBalance: 2500, sortOrder: 0, createdAt: now },
+      { id: Crypto.randomUUID(), name: 'Savings', color: ACCOUNT_COLORS[4], initialBalance: 8000, sortOrder: 1, createdAt: now },
     );
   } else {
     toCreate.push({
@@ -67,6 +73,7 @@ async function ensureAccounts(db: AppDatabase): Promise<{ id: string }[]> {
       name: 'Savings',
       color: ACCOUNT_COLORS[4],
       initialBalance: 5000,
+      sortOrder: existing.length,
       createdAt: now,
     });
   }
