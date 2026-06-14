@@ -24,6 +24,8 @@ function RootNavigator() {
         <Stack.Screen name="analytics" />
         <Stack.Screen name="account/[id]" />
         <Stack.Screen name="account/add" />
+        <Stack.Screen name="account/edit/[id]" />
+        <Stack.Screen name="account/delete/[id]" />
         <Stack.Screen name="transactions/index" />
         <Stack.Screen name="transaction/add" />
         <Stack.Screen name="transaction/[id]" />

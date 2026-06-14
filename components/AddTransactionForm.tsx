@@ -23,9 +23,10 @@ import { useErrorStyle } from '@/lib/useAppTheme';
 type Props = {
   onClose: () => void;
   onSaved?: () => void;
+  initialAccountId?: string;
 };
 
-export function AddTransactionForm({ onClose, onSaved }: Props) {
+export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props) {
   const { refresh } = useApp();
   const errorStyle = useErrorStyle();
   const [type, setType] = useState<TransactionType>('expense');
@@ -59,13 +60,17 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
   useEffect(() => {
     getAccounts().then((rows) => {
       setAccounts(rows);
-      if (rows[0]) {
-        setAccountId(rows[0].id);
-        setFromAccountId(rows[0].id);
-        setToAccountId(rows[1]?.id ?? rows[0].id);
+      const defaultAccount = initialAccountId
+        ? rows.find((a) => a.id === initialAccountId) ?? rows[0]
+        : rows[0];
+      if (defaultAccount) {
+        setAccountId(defaultAccount.id);
+        setFromAccountId(defaultAccount.id);
+        const other = rows.find((a) => a.id !== defaultAccount.id);
+        setToAccountId(other?.id ?? defaultAccount.id);
       }
     });
-  }, []);
+  }, [initialAccountId]);
 
   useEffect(() => {
     const catType = type === 'income' ? 'income' : 'expense';

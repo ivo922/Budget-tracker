@@ -13,6 +13,7 @@ import {
 import { useAppTheme } from '@/lib/useAppTheme';
 
 export type CollapsibleHeaderLeftAction = 'budget' | 'back';
+export type CollapsibleHeaderRightAction = 'edit';
 
 type Props = {
   title: string;
@@ -20,6 +21,8 @@ type Props = {
   headerHeight: number;
   leftAction?: CollapsibleHeaderLeftAction;
   onLeftPress?: () => void;
+  rightAction?: CollapsibleHeaderRightAction;
+  onRightPress?: () => void;
 };
 
 export function CollapsibleScreenHeader({
@@ -28,6 +31,8 @@ export function CollapsibleScreenHeader({
   headerHeight,
   leftAction,
   onLeftPress,
+  rightAction,
+  onRightPress,
 }: Props) {
   const theme = useAppTheme();
 
@@ -60,6 +65,8 @@ export function CollapsibleScreenHeader({
 
   const iconName = leftAction === 'budget' ? 'wallet-outline' : 'arrow-left';
   const expandedLabel = leftAction === 'budget' ? 'Budget' : 'Back';
+  const rightIconName = rightAction === 'edit' ? 'pencil-outline' : null;
+  const rightLabel = rightAction === 'edit' ? 'Edit' : null;
 
   return (
     <View
@@ -67,44 +74,82 @@ export function CollapsibleScreenHeader({
       pointerEvents="box-none"
     >
       <View style={styles.row} pointerEvents="box-none">
-        {leftAction && onLeftPress ? (
-          <View style={styles.leftSlot}>
-            <Animated.View style={[styles.expandedAction, expandedActionStyle]}>
-              <Button
-                mode="text"
-                icon={iconName}
-                onPress={onLeftPress}
-                compact
-                labelStyle={styles.expandedLabel}
-              >
-                {expandedLabel}
-              </Button>
-            </Animated.View>
-            <Animated.View style={[styles.compactAction, compactActionStyle]}>
-              <Pressable
-                onPress={onLeftPress}
-                accessibilityRole="button"
-                accessibilityLabel={expandedLabel}
-                style={({ pressed }) => [
-                  styles.circleButton,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.outlineVariant,
-                    opacity: pressed ? 0.85 : 1,
-                  },
-                ]}
-              >
-                <MaterialCommunityIcons name={iconName} size={22} color={theme.colors.onSurface} />
-              </Pressable>
-            </Animated.View>
-          </View>
-        ) : null}
+        <View style={styles.sideSlot}>
+          {leftAction && onLeftPress ? (
+            <>
+              <Animated.View style={[styles.expandedAction, expandedActionStyle]}>
+                <Button
+                  mode="text"
+                  icon={iconName}
+                  onPress={onLeftPress}
+                  compact
+                  labelStyle={styles.expandedLabel}
+                >
+                  {expandedLabel}
+                </Button>
+              </Animated.View>
+              <Animated.View style={[styles.compactAction, compactActionStyle]}>
+                <Pressable
+                  onPress={onLeftPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={expandedLabel}
+                  style={({ pressed }) => [
+                    styles.circleButton,
+                    {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.outlineVariant,
+                      opacity: pressed ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons name={iconName} size={22} color={theme.colors.onSurface} />
+                </Pressable>
+              </Animated.View>
+            </>
+          ) : null}
+        </View>
 
         <Animated.View style={[styles.titleWrap, titleStyle]} pointerEvents="none">
           <Text variant="titleLarge" style={[styles.title, { color: theme.colors.onSurface }]} numberOfLines={1}>
             {title}
           </Text>
         </Animated.View>
+
+        <View style={[styles.sideSlot, styles.rightSlot]}>
+          {rightAction && onRightPress && rightIconName ? (
+            <>
+              <Animated.View style={[styles.expandedAction, styles.expandedRightAction, expandedActionStyle]}>
+                <Button
+                  mode="text"
+                  icon={rightIconName}
+                  onPress={onRightPress}
+                  compact
+                  labelStyle={styles.expandedLabel}
+                  contentStyle={styles.expandedRightContent}
+                >
+                  {rightLabel}
+                </Button>
+              </Animated.View>
+              <Animated.View style={[styles.compactAction, styles.compactRightAction, compactActionStyle]}>
+                <Pressable
+                  onPress={onRightPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={rightLabel ?? 'Action'}
+                  style={({ pressed }) => [
+                    styles.circleButton,
+                    {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.outlineVariant,
+                      opacity: pressed ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons name={rightIconName} size={22} color={theme.colors.onSurface} />
+                </Pressable>
+              </Animated.View>
+            </>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -124,15 +169,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
   },
-  leftSlot: {
+  sideSlot: {
     width: 108,
     height: HEADER_CONTENT_HEIGHT,
     justifyContent: 'center',
+    flexShrink: 0,
+  },
+  rightSlot: {
+    alignItems: 'flex-end',
   },
   expandedAction: {
     position: 'absolute',
     left: 0,
     justifyContent: 'center',
+  },
+  expandedRightAction: {
+    right: 0,
+  },
+  expandedRightContent: {
+    flexDirection: 'row-reverse',
   },
   expandedLabel: {
     marginHorizontal: 0,
@@ -141,6 +196,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 4,
     justifyContent: 'center',
+  },
+  compactRightAction: {
+    right: 0,
   },
   circleButton: {
     width: 40,
@@ -151,10 +209,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleWrap: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 120,
+    paddingHorizontal: 4,
   },
   title: {
     fontWeight: '700',

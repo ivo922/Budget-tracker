@@ -5,7 +5,11 @@ import { FAB } from 'react-native-paper';
 import { SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
-export function AddTransactionFab() {
+type Props = {
+  accountId?: string;
+};
+
+export function AddTransactionFab({ accountId }: Props) {
   const router = useRouter();
   const theme = useAppTheme();
 
@@ -14,7 +18,13 @@ export function AddTransactionFab() {
       icon="plus"
       style={[styles.fab, { backgroundColor: theme.colors.primary }]}
       color={theme.colors.onPrimary}
-      onPress={() => router.push('/transaction/add')}
+      onPress={() =>
+        router.push(
+          accountId
+            ? { pathname: '/transaction/add', params: { accountId } }
+            : '/transaction/add',
+        )
+      }
     />
   );
 }

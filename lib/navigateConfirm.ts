@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 
 type ConfirmParams = {
-  type: 'account' | 'goal' | 'category' | 'transaction';
+  type: 'goal' | 'category' | 'transaction';
   id: string;
   title: string;
   message: string;

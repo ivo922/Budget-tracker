@@ -49,7 +49,9 @@ Users can:
 | `app/` | Screens and navigation; minimal business logic |
 | `app/(tabs)/` | Main tab screens: Dashboard, Accounts, Transactions, Analytics, Goals |
 | `app/transaction/` | Add and edit transaction modals |
-| `app/account/[id].tsx` | Single-account detail and transaction list |
+| `app/account/[id].tsx` | Account settings — balance, linked goal, edit/delete |
+| `app/account/edit/[id].tsx` | Edit account name and color |
+| `app/account/delete/[id].tsx` | Delete wizard — balance migration, goal handling |
 | `app/categories/index.tsx` | Category and subcategory management |
 | `lib/db/schema.ts` | Table definitions: accounts, categories, transactions, goals, budgets |
 | `lib/db/index.ts` | DB open, migration SQL, singleton |
@@ -94,15 +96,24 @@ initial_balance
 
 Transfers are excluded from income/expense totals on the dashboard and analytics.
 
+### Account management
+
+- **Account settings** (`app/account/[id].tsx`): balance hero, linked savings goal, edit and delete actions
+- **Edit** (`app/account/edit/[id].tsx`): rename and recolor; starting balance is read-only
+- **Delete** (`app/account/delete/[id].tsx`): multi-step wizard
+  - Positive balance → funds moved to destination via `initialBalance` adjustment (not a transfer tx, which would be deleted with the account)
+  - Linked savings goal → reassign to another account, unlink, or delete
+  - All transactions involving the account are permanently removed
+
 ### Folder structure
 
 ```
 app/
   (tabs)/index.tsx       Dashboard
-  (tabs)/accounts.tsx    Account list
-  (tabs)/transactions.tsx Transaction feed
-  (tabs)/analytics.tsx   Charts
-  account/[id].tsx
+  (tabs)/analytics.tsx   Charts (all accounts)
+  account/[id].tsx       Account settings
+  account/edit/[id].tsx  Edit account
+  account/delete/[id].tsx Delete wizard
   transaction/add.tsx
   transaction/[id].tsx
   categories/index.tsx

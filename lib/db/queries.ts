@@ -146,6 +146,204 @@ export async function deleteAccount(id: string): Promise<void> {
   await db.delete(accounts).where(eq(accounts.id, id));
 }
 
+export type AccountTransferSummary = {
+  transferIn: number;
+  transferOut: number;
+  count: number;
+};
+
+export type AccountDeletePreview = {
+  account: Account;
+  balance: number;
+  txCount: number;
+  linkedGoal: Goal | null;
+  otherAccounts: Account[];
+  canDelete: boolean;
+  blockReason: string | null;
+};
+
+export async function getAccountTransferSummary(
+  accountId: string,
+  start: number,
+  end: number,
+): Promise<AccountTransferSummary> {
+  const db = getDb();
+  const dateFilter = and(gte(transactions.date, start), lte(transactions.date, end));
+
+  const [inRow] = await db
+    .select({ total: sum(transactions.amount), count: sql<number>`count(*)` })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.type, 'transfer'),
+        eq(transactions.toAccountId, accountId),
+        dateFilter,
+      ),
+    );
+
+  const [outRow] = await db
+    .select({ total: sum(transactions.amount), count: sql<number>`count(*)` })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.type, 'transfer'),
+        eq(transactions.fromAccountId, accountId),
+        dateFilter,
+      ),
+    );
+
+  const inCount = Number(inRow?.count ?? 0);
+  const outCount = Number(outRow?.count ?? 0);
+
+  return {
+    transferIn: Number(inRow?.total ?? 0),
+    transferOut: Number(outRow?.total ?? 0),
+    count: inCount + outCount,
+  };
+}
+
+export type DeleteAccountOptions = {
+  transferToAccountId?: string;
+  goalHandling?: 'reassign' | 'unlink' | 'delete';
+  goalReassignToAccountId?: string;
+};
+
+export type DeleteAccountResult =
+  | { ok: true }
+  | { ok: false; reason: string };
+
+export async function countTransactionsForAccount(accountId: string): Promise<number> {
+  const db = getDb();
+  const rows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(transactions)
+    .where(
+      or(
+        eq(transactions.accountId, accountId),
+        eq(transactions.fromAccountId, accountId),
+        eq(transactions.toAccountId, accountId),
+      ),
+    );
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function migrateAccountBalance(fromId: string, toId: string): Promise<void> {
+  const balance = await getAccountBalance(fromId);
+  if (balance === 0) return;
+  const dest = await getAccountById(toId);
+  if (!dest) throw new Error('Destination account not found');
+  await updateAccount(toId, { initialBalance: dest.initialBalance + balance });
+}
+
+export async function getAccountDeletePreview(accountId: string): Promise<AccountDeletePreview | null> {
+  const account = await getAccountById(accountId);
+  if (!account) return null;
+
+  const [balance, txCount, allAccounts, linkedGoal] = await Promise.all([
+    getAccountBalance(accountId),
+    countTransactionsForAccount(accountId),
+    getAccounts(),
+    getActiveGoalByAccountId(accountId),
+  ]);
+
+  const otherAccounts = allAccounts.filter((a) => a.id !== accountId);
+  let blockReason: string | null = null;
+
+  if (otherAccounts.length === 0) {
+    blockReason = 'Create another account before deleting this one.';
+  } else if (balance < 0) {
+    blockReason = 'Resolve the negative balance before deleting this account.';
+  } else if (balance > 0 && otherAccounts.length === 0) {
+    blockReason = 'Select a destination account to move remaining funds.';
+  }
+
+  return {
+    account,
+    balance,
+    txCount,
+    linkedGoal: linkedGoal ?? null,
+    otherAccounts,
+    canDelete: blockReason === null,
+    blockReason,
+  };
+}
+
+export async function deleteAccountWithOptions(
+  id: string,
+  options: DeleteAccountOptions = {},
+): Promise<DeleteAccountResult> {
+  const preview = await getAccountDeletePreview(id);
+  if (!preview) return { ok: false, reason: 'Account not found' };
+  if (!preview.canDelete) {
+    return { ok: false, reason: preview.blockReason ?? 'Cannot delete account' };
+  }
+
+  const { balance, linkedGoal } = preview;
+
+  if (balance > 0) {
+    if (!options.transferToAccountId) {
+      return { ok: false, reason: 'Select a destination account for remaining funds.' };
+    }
+    if (options.transferToAccountId === id) {
+      return { ok: false, reason: 'Destination account must be different.' };
+    }
+    const dest = await getAccountById(options.transferToAccountId);
+    if (!dest) return { ok: false, reason: 'Destination account not found.' };
+    await migrateAccountBalance(id, options.transferToAccountId);
+  }
+
+  if (linkedGoal) {
+    const handling = options.goalHandling;
+    if (!handling) {
+      return { ok: false, reason: 'Choose what to do with the linked savings goal.' };
+    }
+
+    if (handling === 'reassign') {
+      const reassignTo = options.goalReassignToAccountId ?? options.transferToAccountId;
+      if (!reassignTo) {
+        return { ok: false, reason: 'Select an account to reassign the savings goal to.' };
+      }
+      if (reassignTo === id) {
+        return { ok: false, reason: 'Goal must be reassigned to a different account.' };
+      }
+      const dest = await getAccountById(reassignTo);
+      if (!dest) return { ok: false, reason: 'Reassign destination account not found.' };
+      const conflict = await isAccountLinkedToActiveGoal(reassignTo, linkedGoal.id);
+      if (conflict) {
+        return { ok: false, reason: 'Destination account already has an active savings goal.' };
+      }
+      await updateGoal(linkedGoal.id, { accountId: reassignTo });
+    } else if (handling === 'unlink') {
+      await updateGoal(linkedGoal.id, { accountId: null });
+    } else if (handling === 'delete') {
+      await deleteGoal(linkedGoal.id);
+    }
+  }
+
+  const db = getDb();
+  const affectedTxs = await db
+    .select({ goalId: transactions.goalId })
+    .from(transactions)
+    .where(
+      or(
+        eq(transactions.accountId, id),
+        eq(transactions.fromAccountId, id),
+        eq(transactions.toAccountId, id),
+      ),
+    );
+  const affectedGoalIds = [
+    ...new Set(affectedTxs.map((r) => r.goalId).filter((gid): gid is string => gid != null)),
+  ];
+
+  await deleteAccount(id);
+
+  for (const goalId of affectedGoalIds) {
+    await syncGoalCompletion(goalId);
+  }
+
+  return { ok: true };
+}
+
 export async function getTotalNetBalance(): Promise<number> {
   const accts = await getAccounts();
   let total = 0;

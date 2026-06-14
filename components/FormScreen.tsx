@@ -18,6 +18,9 @@ type Props = {
   confirmLabel?: string;
   confirmLoading?: boolean;
   confirmDestructive?: boolean;
+  onSecondary?: () => void;
+  secondaryLabel?: string;
+  secondaryDestructive?: boolean;
   scrollRef?: RefObject<Animated.ScrollView | null>;
 };
 
@@ -30,6 +33,9 @@ export function FormScreen({
   confirmLabel = 'Save',
   confirmLoading = false,
   confirmDestructive = false,
+  onSecondary,
+  secondaryLabel,
+  secondaryDestructive = false,
   scrollRef,
 }: Props) {
   const theme = useAppTheme();
@@ -74,6 +80,16 @@ export function FormScreen({
           >
             {cancelLabel}
           </Button>
+          {onSecondary && secondaryLabel ? (
+            <Button
+              mode="text"
+              onPress={onSecondary}
+              disabled={confirmLoading}
+              textColor={secondaryDestructive ? theme.colors.error : theme.colors.onSurfaceVariant}
+            >
+              {secondaryLabel}
+            </Button>
+          ) : null}
           {onConfirm ? (
             <Button
               mode="contained"

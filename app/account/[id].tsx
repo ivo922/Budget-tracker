@@ -1,19 +1,20 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { ActivityIndicator, Text } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { ActivityIndicator, Button, ProgressBar, Text } from 'react-native-paper';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
-import { TransactionGroupedList, type TransactionListItem } from '@/components/TransactionGroupedList';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
+import { useApp } from '@/lib/context/AppContext';
 import {
   getAccountBalance,
   getAccountById,
-  getCategoryById,
-  getGoals,
-  getTransactions,
+  getActiveGoalByAccountId,
+  getGoalProgress,
+  getTotalNetBalance,
+  type GoalProgress,
 } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
@@ -22,67 +23,49 @@ import { useAppTheme } from '@/lib/useAppTheme';
 
 export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [account, setAccount] = useState<Account | null>(null);
-  const [balance, setBalance] = useState(0);
-  const [items, setItems] = useState<TransactionListItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const theme = useAppTheme();
-  const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
+  const { ready } = useApp();
+  const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
+
+  const [account, setAccount] = useState<Account | null>(null);
+  const [balance, setBalance] = useState(0);
+  const [netWorthShare, setNetWorthShare] = useState<number | null>(null);
+  const [linkedGoalProgress, setLinkedGoalProgress] = useState<GoalProgress | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     const acct = await getAccountById(id);
     if (!acct) {
+      setAccount(null);
       setLoading(false);
       return;
     }
     setAccount(acct);
-    setBalance(await getAccountBalance(id));
-    const [txs, goalRows] = await Promise.all([getTransactions({ accountId: id }), getGoals()]);
-    const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
-    const enriched = await Promise.all(
-      txs.map(async (tx) => ({
-        tx,
-        account: acct,
-        category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
-        fromAccount: tx.fromAccountId ? await getAccountById(tx.fromAccountId) : undefined,
-        toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
-        goalName: tx.goalId ? goalMap.get(tx.goalId) : undefined,
-      })),
+    const [acctBalance, totalNet, linkedGoal] = await Promise.all([
+      getAccountBalance(id),
+      getTotalNetBalance(),
+      getActiveGoalByAccountId(id),
+    ]);
+    setBalance(acctBalance);
+    setNetWorthShare(
+      totalNet > 0 && acctBalance >= 0 ? Math.round((acctBalance / totalNet) * 100) : null,
     );
-    setItems(enriched);
+    if (linkedGoal) {
+      setLinkedGoalProgress(await getGoalProgress(linkedGoal.id));
+    } else {
+      setLinkedGoalProgress(null);
+    }
     setLoading(false);
   }, [id]);
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load]),
+      if (ready) load();
+    }, [ready, load]),
   );
-
-  const accountHeader = useMemo(() => {
-    if (!account) return null;
-    return (
-      <View
-        style={[
-          styles.accountCard,
-          {
-            borderColor: account.color,
-            backgroundColor: theme.colors.surface,
-          },
-        ]}
-      >
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>
-          {account.name}
-        </Text>
-        <Text variant="titleLarge" style={[styles.balance, { color: theme.colors.onSurface }]}>
-          {formatCurrency(balance)}
-        </Text>
-      </View>
-    );
-  }, [account, balance, theme.colors.onSurface, theme.colors.surface]);
 
   if (loading) {
     return (
@@ -96,6 +79,12 @@ export default function AccountDetailScreen() {
     return <EmptyState title="Account not found" message="This account may have been deleted." />;
   }
 
+  const createdLabel = new Date(account.createdAt).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
   return (
     <View style={layoutStyles.screen}>
       <CollapsibleScreenHeader
@@ -105,39 +94,138 @@ export default function AccountDetailScreen() {
         leftAction="back"
         onLeftPress={() => router.back()}
       />
-      {items.length === 0 ? (
-        <Animated.ScrollView
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          contentContainerStyle={[scrollContentStyle, styles.emptyScroll]}
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={[scrollContentStyleNoFab, styles.scroll]}
+      >
+        <View
+          style={[
+            styles.heroCard,
+            { borderColor: account.color, backgroundColor: theme.colors.surface },
+          ]}
         >
-          {accountHeader}
-          <EmptyState title="No transactions" message="Transactions for this account will appear here." />
-        </Animated.ScrollView>
-      ) : (
-        <TransactionGroupedList
-          items={items}
-          extraData={items}
-          contentContainerStyle={scrollContentStyle}
-          ListHeaderComponent={accountHeader}
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          onPressItem={(txId) => router.push(`/transaction/${txId}`)}
-        />
-      )}
+          <Text variant="titleLarge" style={{ fontWeight: '700' }}>
+            {account.name}
+          </Text>
+          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            Current balance
+          </Text>
+          <Text variant="headlineMedium" style={{ fontWeight: '700' }}>
+            {formatCurrency(balance)}
+          </Text>
+          <View style={styles.heroMeta}>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              {formatCurrency(account.initialBalance)} starting
+            </Text>
+            {netWorthShare != null ? (
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {netWorthShare}% of total balance
+              </Text>
+            ) : null}
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              Since {createdLabel}
+            </Text>
+          </View>
+        </View>
+
+        {linkedGoalProgress ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`View goal ${linkedGoalProgress.goal.name}`}
+            onPress={() => router.push(`/goal/${linkedGoalProgress.goal.id}`)}
+            style={[
+              styles.goalCard,
+              {
+                borderColor:
+                  linkedGoalProgress.goal.status === 'completed'
+                    ? theme.colors.outline
+                    : theme.colors.income,
+                backgroundColor: theme.colors.surface,
+                opacity: linkedGoalProgress.goal.status === 'completed' ? 0.85 : 1,
+              },
+            ]}
+          >
+            <View style={styles.goalHeader}>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Linked savings goal
+                {linkedGoalProgress.goal.status === 'completed' ? ' · Completed' : ''}
+              </Text>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+            <Text variant="titleMedium" style={{ fontWeight: '600' }}>
+              {linkedGoalProgress.goal.name}
+            </Text>
+            <Text variant="bodyMedium">
+              {formatCurrency(linkedGoalProgress.progress)} of{' '}
+              {formatCurrency(linkedGoalProgress.goal.targetAmount)}
+            </Text>
+            <ProgressBar
+              progress={linkedGoalProgress.percent / 100}
+              color={theme.colors.income}
+              style={styles.bar}
+            />
+          </Pressable>
+        ) : null}
+
+        <View style={[styles.actionsCard, { backgroundColor: theme.colors.surface }]}>
+          <Text variant="titleMedium" style={styles.actionsTitle}>
+            Account settings
+          </Text>
+          <Button
+            mode="outlined"
+            icon="pencil-outline"
+            onPress={() => router.push(`/account/edit/${account.id}`)}
+            style={styles.actionButton}
+          >
+            Edit account
+          </Button>
+          <Button
+            mode="outlined"
+            icon="delete-outline"
+            textColor={theme.colors.error}
+            onPress={() => router.push(`/account/delete/${account.id}`)}
+            style={styles.actionButton}
+          >
+            Delete account
+          </Button>
+        </View>
+      </Animated.ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyScroll: { flexGrow: 1 },
-  accountCard: {
-    marginBottom: 8,
+  scroll: { flexGrow: 1, gap: 12, paddingBottom: SCREEN_PADDING },
+  heroCard: {
     padding: 16,
-    borderWidth: 2,
     borderRadius: BORDER_RADIUS,
+    borderWidth: 2,
     gap: 4,
   },
-  balance: { fontWeight: '700' },
+  heroMeta: { gap: 2, marginTop: 4 },
+  goalCard: {
+    padding: 16,
+    borderRadius: BORDER_RADIUS,
+    borderWidth: 2,
+    gap: 6,
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bar: { height: 8, borderRadius: BORDER_RADIUS },
+  actionsCard: {
+    padding: 16,
+    borderRadius: BORDER_RADIUS,
+    gap: 10,
+  },
+  actionsTitle: { fontWeight: '600' },
+  actionButton: { alignSelf: 'stretch' },
 });

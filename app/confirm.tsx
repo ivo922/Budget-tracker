@@ -6,7 +6,6 @@ import { FormScreen } from '@/components/FormScreen';
 import { useApp } from '@/lib/context/AppContext';
 import {
   countTransactionsForCategory,
-  deleteAccount,
   deleteCategory,
   deleteGoal,
   deleteTransaction,
@@ -52,9 +51,6 @@ export default function ConfirmScreen() {
           }
           break;
         }
-        case 'account':
-          await deleteAccount(params.id);
-          break;
         case 'goal':
           await deleteGoal(params.id);
           break;

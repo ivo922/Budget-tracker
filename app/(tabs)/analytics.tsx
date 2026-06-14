@@ -1,5 +1,4 @@
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -73,6 +72,7 @@ type DrillState =
 
 export default function AnalyticsScreen() {
   const router = useRouter();
+  const { accountId: routeAccountId } = useLocalSearchParams<{ accountId?: string }>();
   const theme = useAppTheme();
   const { ready, refreshKey } = useApp();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
@@ -141,9 +141,13 @@ export default function AnalyticsScreen() {
     ];
     setSlides(nextSlides);
 
-    const safeIndex = selectedIndex < nextSlides.length ? selectedIndex : 0;
-    if (safeIndex !== selectedIndex) setSelectedIndex(safeIndex);
-    const filter = accountFilterForSlide(nextSlides[safeIndex]);
+    let index = selectedIndex < nextSlides.length ? selectedIndex : 0;
+    if (routeAccountId) {
+      const match = nextSlides.findIndex((s) => s.id === routeAccountId);
+      if (match >= 0) index = match;
+    }
+    if (index !== selectedIndex) setSelectedIndex(index);
+    const filter = accountFilterForSlide(nextSlides[index]);
 
     const summaryPromise = getPeriodSummary(periodRange.start, periodRange.end, filter);
     const previousPromise = previousRange
@@ -232,6 +236,7 @@ export default function AnalyticsScreen() {
     previousRange,
     refreshKey,
     selectedIndex,
+    routeAccountId,
     theme.colors.primary,
     viewMode,
   ]);
