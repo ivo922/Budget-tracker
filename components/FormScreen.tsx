@@ -43,7 +43,7 @@ export function FormScreen({
   const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
 
   return (
-    <View style={layoutStyles.screen}>
+    <View style={[layoutStyles.screen, { backgroundColor: theme.colors.background }]}>
       <CollapsibleScreenHeader
         title={title}
         scrollY={scrollY}

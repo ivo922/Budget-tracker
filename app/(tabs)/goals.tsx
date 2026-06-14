@@ -38,8 +38,6 @@ export default function GoalsScreen() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<GoalListFilter>('active');
   const [showArchived, setShowArchived] = useState(false);
-  const [addVisible, setAddVisible] = useState(false);
-  const [addInitialType, setAddInitialType] = useState<GoalType>('savings');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,8 +89,7 @@ export default function GoalsScreen() {
   }, [filter, items, showArchived]);
 
   const openAdd = (type: GoalType = 'savings') => {
-    setAddInitialType(type);
-    setAddVisible(true);
+    router.push({ pathname: '/goal/add', params: { type } });
   };
 
   if (!ready || loading) {
@@ -165,13 +162,7 @@ export default function GoalsScreen() {
         />
       )}
 
-      <AddGoalFab
-        onOpenAdd={() => openAdd('savings')}
-        addVisible={addVisible}
-        onCloseAdd={() => setAddVisible(false)}
-        onSaved={() => load()}
-        initialType={addInitialType}
-      />
+      <AddGoalFab />
     </View>
   );
 }

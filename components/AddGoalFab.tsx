@@ -1,44 +1,31 @@
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { Modal, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { FAB } from 'react-native-paper';
-import { AddGoalForm } from '@/components/AddGoalForm';
 import type { GoalType } from '@/lib/db/schema';
 import { SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
-  onOpenAdd?: () => void;
-  addVisible?: boolean;
-  onCloseAdd?: () => void;
-  onSaved?: (goalId?: string) => void;
   initialType?: GoalType;
 };
 
-export function AddGoalFab({
-  onOpenAdd,
-  addVisible = false,
-  onCloseAdd,
-  onSaved,
-  initialType,
-}: Props) {
+export function AddGoalFab({ initialType = 'savings' }: Props) {
+  const router = useRouter();
   const theme = useAppTheme();
 
   return (
-    <>
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        color={theme.colors.onPrimary}
-        onPress={onOpenAdd}
-      />
-      <Modal visible={addVisible} animationType="slide" presentationStyle="pageSheet">
-        <AddGoalForm
-          onClose={() => onCloseAdd?.()}
-          onSaved={onSaved}
-          initialType={initialType}
-        />
-      </Modal>
-    </>
+    <FAB
+      icon="plus"
+      style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+      color={theme.colors.onPrimary}
+      onPress={() =>
+        router.push({
+          pathname: '/goal/add',
+          params: { type: initialType },
+        })
+      }
+    />
   );
 }
 
