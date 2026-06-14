@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button } from 'react-native-paper';
@@ -7,17 +7,25 @@ import { AddGoalFab } from '@/components/AddGoalFab';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { GoalCard } from '@/components/GoalCard';
+import { GoalFilterBar, matchesGoalFilter, type GoalListFilter } from '@/components/GoalFilterBar';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
+import { computeGoalPace } from '@/lib/goalPace';
 import { layoutStyles } from '@/lib/layout';
-import { navigateToConfirm } from '@/lib/navigateConfirm';
-import { useAppTheme } from '@/lib/useAppTheme';
-import { getAccountBalance, getAccountById, getGoalsWithProgress } from '@/lib/db/queries';
+import {
+  getAccountBalance,
+  getAccountById,
+  getGoalContributionTimeline,
+  getGoalsWithProgress,
+} from '@/lib/db/queries';
 import type { GoalProgress } from '@/lib/db/queries';
+import type { GoalType } from '@/lib/db/schema';
 
 type GoalListItem = GoalProgress & {
   linkedAccountName?: string;
   linkedAccountBalance?: number;
+  paceLabel?: string;
+  dueLabel?: string;
 };
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<GoalListItem>);
@@ -25,23 +33,36 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<GoalListItem>
 export default function GoalsScreen() {
   const router = useRouter();
   const { ready } = useApp();
-  const theme = useAppTheme();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
   const [items, setItems] = useState<GoalListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<GoalListFilter>('active');
+  const [showArchived, setShowArchived] = useState(false);
+  const [addVisible, setAddVisible] = useState(false);
+  const [addInitialType, setAddInitialType] = useState<GoalType>('savings');
 
   const load = useCallback(async () => {
     setLoading(true);
     const goals = await getGoalsWithProgress();
     const enriched = await Promise.all(
       goals.map(async (item) => {
-        if (!item.goal.accountId || item.goal.type !== 'savings') return item;
-        const account = await getAccountById(item.goal.accountId);
-        if (!account) return item;
+        const timeline = await getGoalContributionTimeline(item.goal.id);
+        const pace = computeGoalPace(item, timeline);
+        let linkedAccountName: string | undefined;
+        let linkedAccountBalance: number | undefined;
+        if (item.goal.accountId && item.goal.type === 'savings') {
+          const account = await getAccountById(item.goal.accountId);
+          if (account) {
+            linkedAccountName = account.name;
+            linkedAccountBalance = await getAccountBalance(account.id);
+          }
+        }
         return {
           ...item,
-          linkedAccountName: account.name,
-          linkedAccountBalance: await getAccountBalance(account.id),
+          linkedAccountName,
+          linkedAccountBalance,
+          paceLabel: pace.label || undefined,
+          dueLabel: pace.dueLabel,
         };
       }),
     );
@@ -55,6 +76,25 @@ export default function GoalsScreen() {
     }, [ready, load]),
   );
 
+  const archivedCount = useMemo(
+    () => items.filter((item) => item.goal.status === 'archived').length,
+    [items],
+  );
+
+  const visibleItems = useMemo(() => {
+    const filtered = items.filter((item) => matchesGoalFilter(item.goal, filter, showArchived));
+    return filtered.sort((a, b) => {
+      if (a.goal.status === 'active' && b.goal.status !== 'active') return -1;
+      if (b.goal.status === 'active' && a.goal.status !== 'active') return 1;
+      return b.percent - a.percent;
+    });
+  }, [filter, items, showArchived]);
+
+  const openAdd = (type: GoalType = 'savings') => {
+    setAddInitialType(type);
+    setAddVisible(true);
+  };
+
   if (!ready || loading) {
     return (
       <View style={styles.center}>
@@ -62,6 +102,16 @@ export default function GoalsScreen() {
       </View>
     );
   }
+
+  const listHeader = (
+    <GoalFilterBar
+      value={filter}
+      onChange={setFilter}
+      showArchived={showArchived}
+      onToggleArchived={() => setShowArchived((v) => !v)}
+      archivedCount={archivedCount}
+    />
+  );
 
   return (
     <View style={layoutStyles.screen}>
@@ -74,46 +124,54 @@ export default function GoalsScreen() {
         >
           <EmptyState
             title="No goals yet"
-            message="Create a savings or loan goal and link transactions to track progress."
+            message="1. Set a target · 2. Link an account or transactions."
           />
+          <View style={styles.emptyActions}>
+            <Button mode="contained" onPress={() => openAdd('savings')}>
+              Create savings goal
+            </Button>
+            <Button mode="outlined" onPress={() => openAdd('loan')}>
+              Track a loan
+            </Button>
+          </View>
         </Animated.ScrollView>
       ) : (
         <AnimatedFlatList
-          data={items}
+          data={visibleItems}
           keyExtractor={(item) => item.goal.id}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
           contentContainerStyle={scrollContentStyle}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={
+            <EmptyState
+              title="No goals in this view"
+              message={showArchived ? 'Try another filter.' : 'Completed goals appear under Completed.'}
+            />
+          }
           renderItem={({ item }) => (
             <View style={styles.cardWrap}>
               <GoalCard
                 item={item}
                 linkedAccountName={item.linkedAccountName}
                 linkedAccountBalance={item.linkedAccountBalance}
+                paceLabel={item.paceLabel}
+                dueLabel={item.dueLabel}
                 onPress={() => router.push(`/goal/${item.goal.id}`)}
+                onLinkPress={() => router.push(`/goal/link/${item.goal.id}`)}
               />
-              {item.goal.status === 'active' ? (
-                <Button
-                  mode="text"
-                  textColor={theme.colors.error}
-                  onPress={() =>
-                    navigateToConfirm(router, {
-                      type: 'goal',
-                      id: item.goal.id,
-                      title: 'Delete goal?',
-                      message: 'Linked transactions will be unlinked. This cannot be undone.',
-                    })
-                  }
-                >
-                  Delete
-                </Button>
-              ) : null}
             </View>
           )}
         />
       )}
 
-      <AddGoalFab />
+      <AddGoalFab
+        onOpenAdd={() => openAdd('savings')}
+        addVisible={addVisible}
+        onCloseAdd={() => setAddVisible(false)}
+        onSaved={() => load()}
+        initialType={addInitialType}
+      />
     </View>
   );
 }
@@ -121,5 +179,6 @@ export default function GoalsScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyScroll: { flexGrow: 1 },
-  cardWrap: { gap: 4 },
+  emptyActions: { gap: 12, paddingHorizontal: 16, marginTop: 8 },
+  cardWrap: { marginBottom: 12 },
 });

@@ -177,13 +177,14 @@ Goals tab: create savings or loan goals, track progress, view detail with contri
 ### Progress rules
 
 - **Savings:** `starting_balance + income linked − expense linked` (net)
+- Transfers into/out of a linked account count as deposits/withdrawals
 - **Loan:** `starting_balance + expense linked only` (manual linking via goal picker)
 
 ### Account auto-link (savings only)
 
 When a **savings** goal has `account_id` set:
 
-- All income and expense on that account auto-assign `goal_id`
+- All income, expense, and transfers on that account count toward goal progress
 - One active savings goal per account (validated on create)
 - On link, optional backfill of existing account transactions
 

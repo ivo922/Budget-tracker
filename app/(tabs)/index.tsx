@@ -7,6 +7,7 @@ import { AccountCarousel, ADD_ACCOUNT_SLIDE_ID, accountFilterForSlide, isAddAcco
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { BudgetSummary } from '@/components/BudgetSummary';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
+import { GoalsSummaryStrip } from '@/components/GoalsSummaryStrip';
 import { EmptyState } from '@/components/EmptyState';
 import { MonthSummaryCard } from '@/components/MonthSummaryCard';
 import { buildTransactionDaySections } from '@/components/TransactionGroupedList';
@@ -14,11 +15,13 @@ import { TransactionDayGroup } from '@/components/TransactionDayGroup';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import {
+  getActiveGoalsWithProgress,
   getAccountBalance,
   getAccountById,
   getAccounts,
   getBudgetVsActual,
   getCategoryById,
+  getGoalContributionTimeline,
   getGoals,
   getPeriodSummary,
   getTotalNetBalance,
@@ -33,6 +36,7 @@ import {
   getCurrentCalendarMonth,
   getDashboardPeriodRange,
 } from '@/lib/periods';
+import { computeGoalPace } from '@/lib/goalPace';
 import { layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
@@ -41,7 +45,31 @@ type EnrichedTx = {
   account?: Account;
   category?: Category;
   goalName?: string;
+  goalId?: string;
 };
+
+type DashboardGoalItem = Awaited<ReturnType<typeof enrichGoalForStrip>>;
+
+async function enrichGoalForStrip(item: Awaited<ReturnType<typeof getActiveGoalsWithProgress>>[number]) {
+  const timeline = await getGoalContributionTimeline(item.goal.id);
+  const pace = computeGoalPace(item, timeline);
+  let linkedAccountName: string | undefined;
+  let linkedAccountBalance: number | undefined;
+  if (item.goal.accountId && item.goal.type === 'savings') {
+    const account = await getAccountById(item.goal.accountId);
+    if (account) {
+      linkedAccountName = account.name;
+      linkedAccountBalance = await getAccountBalance(account.id);
+    }
+  }
+  return {
+    ...item,
+    linkedAccountName,
+    linkedAccountBalance,
+    paceLabel: pace.label || undefined,
+    dueLabel: pace.dueLabel,
+  };
+}
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -55,6 +83,7 @@ export default function DashboardScreen() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [budgetSummary, setBudgetSummary] = useState<BudgetVsActual | null>(null);
+  const [activeGoals, setActiveGoals] = useState<DashboardGoalItem[]>([]);
   const recentSections = useMemo(() => buildTransactionDaySections(recent), [recent]);
 
   const currentMonth = getCurrentCalendarMonth();
@@ -103,7 +132,7 @@ export default function DashboardScreen() {
 
     const accountFilter = accountFilterForSlide(nextSlides[safeIndex]);
     const range = getDashboardPeriodRange(period);
-    const [periodSummary, txs, budget, goalRows] = await Promise.all([
+    const [periodSummary, txs, budget, goalRows, goalProgressRows] = await Promise.all([
       getPeriodSummary(range.start, range.end, accountFilter),
       getTransactions({ limit: 5, accountId: accountFilter }),
       getBudgetVsActual(
@@ -113,16 +142,20 @@ export default function DashboardScreen() {
         budgetMonthRange.end,
       ),
       getGoals(),
+      getActiveGoalsWithProgress(3),
     ]);
     const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
     setSummary(periodSummary);
     setBudgetSummary(budget);
+    const enrichedGoals = await Promise.all(goalProgressRows.map(enrichGoalForStrip));
+    setActiveGoals(enrichedGoals);
     const enriched = await Promise.all(
       txs.map(async (tx) => ({
         tx,
         account: tx.accountId ? await getAccountById(tx.accountId) : undefined,
         category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
         goalName: tx.goalId ? goalMap.get(tx.goalId) : undefined,
+        goalId: tx.goalId ?? undefined,
       })),
     );
     setRecent(enriched);
@@ -225,6 +258,8 @@ export default function DashboardScreen() {
           </View>
         )}
 
+        <GoalsSummaryStrip items={activeGoals} />
+
         <View style={styles.recentHeader}>
           <Text variant="titleMedium">Recent transactions</Text>
           <Button compact mode="text" onPress={openAllTransactions}>
@@ -242,6 +277,7 @@ export default function DashboardScreen() {
                 key={section.key}
                 section={section}
                 onPressItem={(txId) => router.push(`/transaction/${txId}`)}
+                onPressGoal={(goalId) => router.push(`/goal/${goalId}`)}
               />
             ))}
           </View>

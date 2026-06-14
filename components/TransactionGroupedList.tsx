@@ -23,6 +23,8 @@ export type TransactionListItem = {
   fromAccount?: Account;
   toAccount?: Account;
   goalName?: string;
+  goalId?: string;
+  goalContribution?: number;
 };
 
 export type TransactionDaySection = {
@@ -47,6 +49,7 @@ export function buildTransactionDaySections(items: TransactionListItem[]): Trans
 type Props = {
   items: TransactionListItem[];
   onPressItem: (id: string) => void;
+  onPressGoal?: (goalId: string) => void;
   showDayTotals?: boolean;
   contentContainerStyle?: ViewStyle;
   stickySectionHeadersEnabled?: boolean;
@@ -72,6 +75,7 @@ export const TransactionGroupedList = forwardRef<
   {
     items,
     onPressItem,
+    onPressGoal,
     showDayTotals = true,
     contentContainerStyle,
     stickySectionHeadersEnabled = true,
@@ -107,7 +111,10 @@ export const TransactionGroupedList = forwardRef<
           fromAccount={item.fromAccount}
           toAccount={item.toAccount}
           goalName={item.goalName}
+          goalId={item.goalId}
+          goalContribution={item.goalContribution}
           onPress={() => onPressItem(item.tx.id)}
+          onPressGoal={onPressGoal}
         />
         {!isLast ? <Divider style={{ backgroundColor: theme.colors.outlineVariant }} /> : null}
       </View>

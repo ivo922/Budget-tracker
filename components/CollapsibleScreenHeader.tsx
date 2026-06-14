@@ -13,7 +13,7 @@ import {
 import { useAppTheme } from '@/lib/useAppTheme';
 
 export type CollapsibleHeaderLeftAction = 'budget' | 'back';
-export type CollapsibleHeaderRightAction = 'edit';
+export type CollapsibleHeaderRightAction = 'edit' | 'more';
 
 type Props = {
   title: string;
@@ -65,8 +65,9 @@ export function CollapsibleScreenHeader({
 
   const iconName = leftAction === 'budget' ? 'wallet-outline' : 'arrow-left';
   const expandedLabel = leftAction === 'budget' ? 'Budget' : 'Back';
-  const rightIconName = rightAction === 'edit' ? 'pencil-outline' : null;
-  const rightLabel = rightAction === 'edit' ? 'Edit' : null;
+  const rightIconName =
+    rightAction === 'edit' ? 'pencil-outline' : rightAction === 'more' ? 'dots-vertical' : null;
+  const rightLabel = rightAction === 'edit' ? 'Edit' : rightAction === 'more' ? 'More' : null;
 
   return (
     <View

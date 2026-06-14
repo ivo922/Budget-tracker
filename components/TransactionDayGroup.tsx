@@ -10,10 +10,11 @@ import { useAppTheme } from '@/lib/useAppTheme';
 type Props = {
   section: TransactionDaySection;
   onPressItem: (id: string) => void;
+  onPressGoal?: (goalId: string) => void;
   showDayTotal?: boolean;
 };
 
-export function TransactionDayGroup({ section, onPressItem, showDayTotal = true }: Props) {
+export function TransactionDayGroup({ section, onPressItem, onPressGoal, showDayTotal = true }: Props) {
   const theme = useAppTheme();
 
   return (
@@ -29,6 +30,7 @@ export function TransactionDayGroup({ section, onPressItem, showDayTotal = true 
             item={item}
             isLast={index === section.data.length - 1}
             onPress={() => onPressItem(item.tx.id)}
+            onPressGoal={onPressGoal}
           />
         ))}
       </View>
@@ -40,10 +42,12 @@ function TransactionDayGroupRow({
   item,
   isLast,
   onPress,
+  onPressGoal,
 }: {
   item: TransactionListItem;
   isLast: boolean;
   onPress: () => void;
+  onPressGoal?: (goalId: string) => void;
 }) {
   const theme = useAppTheme();
 
@@ -56,7 +60,9 @@ function TransactionDayGroupRow({
         fromAccount={item.fromAccount}
         toAccount={item.toAccount}
         goalName={item.goalName}
+        goalId={item.goalId}
         onPress={onPress}
+        onPressGoal={onPressGoal}
       />
       {!isLast ? <Divider style={{ backgroundColor: theme.colors.outlineVariant }} /> : null}
     </View>

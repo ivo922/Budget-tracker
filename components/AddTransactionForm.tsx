@@ -18,7 +18,7 @@ import {
   getSubcategories,
 } from '@/lib/db/queries';
 import type { Account, Category, Goal, TransactionType } from '@/lib/db/schema';
-import { useErrorStyle } from '@/lib/useAppTheme';
+import { useErrorStyle, useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
   onClose: () => void;
@@ -28,6 +28,7 @@ type Props = {
 
 export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props) {
   const { refresh } = useApp();
+  const theme = useAppTheme();
   const errorStyle = useErrorStyle();
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -94,7 +95,23 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
   }, [parentCategoryId, type]);
 
   useEffect(() => {
-    if (type === 'transfer' || !accountId) {
+    if (type === 'transfer') {
+      if (!toAccountId && !fromAccountId) {
+        setAutoLinkedGoal(undefined);
+        return;
+      }
+      Promise.all([
+        toAccountId ? getActiveGoalByAccountId(toAccountId) : undefined,
+        fromAccountId ? getActiveGoalByAccountId(fromAccountId) : undefined,
+      ]).then(([toGoal, fromGoal]) => {
+        const goal =
+          toGoal?.type === 'savings' ? toGoal : fromGoal?.type === 'savings' ? fromGoal : undefined;
+        setAutoLinkedGoal(goal);
+        setGoalId(undefined);
+      });
+      return;
+    }
+    if (!accountId) {
       setAutoLinkedGoal(undefined);
       return;
     }
@@ -106,7 +123,7 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
       setAutoLinkedGoal(goal);
       setGoalId(undefined);
     });
-  }, [accountId, type]);
+  }, [accountId, fromAccountId, toAccountId, type]);
 
   const manualGoalOptions = useMemo(() => {
     if (autoLinkedGoal) return [];
@@ -254,6 +271,17 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
           </View>
         ) : null}
 
+        {type === 'transfer' && autoLinkedGoal ? (
+          <View>
+            <Text variant="labelMedium" style={{ marginBottom: 4 }}>
+              Goal
+            </Text>
+            <Text variant="bodyMedium">
+              Tracking: {autoLinkedGoal.name} (Savings)
+            </Text>
+          </View>
+        ) : null}
+
         {type !== 'transfer' && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
           <InlineSelect
             label="Goal"
@@ -262,6 +290,18 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
             onChange={setGoalId}
             allowClear
           />
+        ) : null}
+
+        {type === 'expense' && goalId && manualGoalOptions.some((o) => o.value === goalId) ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14, paddingBottom: 8 }}>
+            Each linked expense counts toward loan payoff.
+          </Text>
+        ) : null}
+
+        {type === 'expense' && !goalId && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14, paddingBottom: 8 }}>
+            Track toward a loan? Pick a goal above.
+          </Text>
         ) : null}
 
         <FormTextInput label="Note (optional)" value={note} onChangeText={setNote} />

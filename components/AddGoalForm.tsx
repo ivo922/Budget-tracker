@@ -1,6 +1,9 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { Alert, Platform, StyleSheet } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
+import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
 import { FormScreen } from '@/components/FormScreen';
 import { FormTextInput } from '@/components/FormTextInput';
@@ -12,6 +15,7 @@ import {
   countBackfillableTransactions,
   createGoal,
   getAccounts,
+  getActiveGoals,
   isAccountLinkedToActiveGoal,
 } from '@/lib/db/queries';
 import type { Account, GoalType } from '@/lib/db/schema';
@@ -19,42 +23,86 @@ import { useErrorStyle, useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
   onClose: () => void;
-  onSaved?: () => void;
+  onSaved?: (goalId?: string) => void;
+  initialType?: GoalType;
 };
 
-export function AddGoalForm({ onClose, onSaved }: Props) {
+export function AddGoalForm({ onClose, onSaved, initialType = 'savings' }: Props) {
+  const router = useRouter();
   const { refresh } = useApp();
   const theme = useAppTheme();
   const errorStyle = useErrorStyle();
-  const [type, setType] = useState<GoalType>('savings');
+  const [type, setType] = useState<GoalType>(initialType);
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [startingBalance, setStartingBalance] = useState('0');
+  const [targetDate, setTargetDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [linkedAccountGoals, setLinkedAccountGoals] = useState<Map<string, string>>(new Map());
   const [accountId, setAccountId] = useState<string | undefined>();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const accountOptions = useMemo(
-    () => accounts.map((a) => ({ value: a.id, label: a.name })),
-    [accounts],
-  );
-
   useEffect(() => {
-    getAccounts().then(setAccounts);
+    Promise.all([getAccounts(), getActiveGoals()]).then(([accts, activeGoals]) => {
+      setAccounts(accts);
+      const map = new Map<string, string>();
+      for (const g of activeGoals) {
+        if (g.accountId) map.set(g.accountId, g.name);
+      }
+      setLinkedAccountGoals(map);
+    });
   }, []);
 
   useEffect(() => {
     if (type === 'loan') setAccountId(undefined);
   }, [type]);
 
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((a) => {
+        const linkedGoal = linkedAccountGoals.get(a.id);
+        return {
+          value: a.id,
+          label: linkedGoal ? `${a.name} (linked to ${linkedGoal})` : a.name,
+          disabled: Boolean(linkedGoal),
+        };
+      }),
+    [accounts, linkedAccountGoals],
+  );
+
+  const selectableAccountOptions = useMemo(
+    () => accountOptions.filter((o) => !o.disabled),
+    [accountOptions],
+  );
+
   const accountHelper =
     'Deposits and withdrawals on this account track toward your goal automatically.';
 
-  const finishSave = () => {
+  const finishSave = (goalId?: string) => {
     refresh();
-    onSaved?.();
+    onSaved?.(goalId);
     onClose();
+  };
+
+  const promptLinkAccount = (goalId: string) => {
+    Alert.alert(
+      'Link an account?',
+      'Link an account to auto-track transactions toward this goal.',
+      [
+        { text: 'Skip', style: 'cancel', onPress: () => finishSave(goalId) },
+        {
+          text: 'Link account',
+          onPress: () => {
+            refresh();
+            onSaved?.(goalId);
+            onClose();
+            router.push(`/goal/link/${goalId}`);
+          },
+        },
+      ],
+    );
   };
 
   const handleSave = async () => {
@@ -80,34 +128,40 @@ export function AddGoalForm({ onClose, onSaved }: Props) {
       type,
       targetAmount: target,
       startingBalance: parseFloat(startingBalance) || 0,
-      targetDate: null,
+      targetDate: targetDate ? targetDate.getTime() : null,
       accountId: linkedAccountId,
     });
 
     if (linkedAccountId) {
       const pendingCount = await countBackfillableTransactions(goal.id);
+      setSaving(false);
       if (pendingCount > 0) {
-        setSaving(false);
         Alert.alert(
           'Link existing transactions?',
           `Link ${pendingCount} existing transaction${pendingCount === 1 ? '' : 's'} on this account to this goal?`,
           [
-            { text: 'Skip', style: 'cancel', onPress: finishSave },
+            { text: 'Skip', style: 'cancel', onPress: () => finishSave(goal.id) },
             {
               text: 'Link',
               onPress: async () => {
                 await backfillGoalTransactions(goal.id);
-                finishSave();
+                finishSave(goal.id);
               },
             },
           ],
         );
         return;
       }
+      finishSave(goal.id);
+      return;
     }
 
     setSaving(false);
-    finishSave();
+    if (type === 'savings') {
+      promptLinkAccount(goal.id);
+      return;
+    }
+    finishSave(goal.id);
   };
 
   return (
@@ -134,31 +188,61 @@ export function AddGoalForm({ onClose, onSaved }: Props) {
           keyboardType="decimal-pad"
           left={<TextInput.Affix text="$" />}
         />
+        <Text variant="bodySmall" style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+          Money already {type === 'loan' ? 'paid' : 'saved'} before tracking started.
+        </Text>
+        <FormFieldButton
+          label="Target date (optional)"
+          value={targetDate ? targetDate.toLocaleDateString() : 'None'}
+          onPress={() => setShowDatePicker(true)}
+          icon="calendar-outline"
+        />
+        {targetDate ? (
+          <Text
+            variant="labelMedium"
+            style={{ color: theme.colors.primary, paddingHorizontal: 14, paddingBottom: 8 }}
+            onPress={() => setTargetDate(null)}
+          >
+            Clear target date
+          </Text>
+        ) : null}
         {type === 'savings' ? (
           <>
             <InlineSelect
               label="Linked account (optional)"
               value={accountId}
-              options={accountOptions}
+              options={selectableAccountOptions}
               onChange={setAccountId}
               allowClear
               clearLabel="None"
             />
             {accountId ? (
-              <Text variant="bodySmall" style={[styles.accountHelper, { color: theme.colors.onSurfaceVariant }]}>
+              <Text variant="bodySmall" style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                 {accountHelper}
               </Text>
             ) : null}
           </>
         ) : null}
       </FormFieldGroup>
+      {showDatePicker ? (
+        <DateTimePicker
+          value={targetDate ?? new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={new Date()}
+          onChange={(_, selected) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (selected) setTargetDate(selected);
+          }}
+        />
+      ) : null}
       {error ? <Text style={errorStyle}>{error}</Text> : null}
     </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  accountHelper: {
+  helper: {
     paddingHorizontal: 14,
     paddingBottom: 12,
   },

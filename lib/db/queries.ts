@@ -1,5 +1,5 @@
 import * as Crypto from 'expo-crypto';
-import { format, startOfDay, startOfWeek } from 'date-fns';
+import { differenceInMonths, endOfMonth, format, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
 import {
   and,
   asc,
@@ -74,17 +74,74 @@ export type GoalTimelinePoint = {
   contribution: number;
 };
 
+export type GoalStats = {
+  startingBalance: number;
+  thisMonthContribution: number;
+  averageMonthlyContribution: number;
+  transactionCount: number;
+};
+
 export function signedGoalContribution(
-  tx: Pick<Transaction, 'type' | 'amount'>,
-  goalType: GoalType,
+  tx: Pick<Transaction, 'type' | 'amount' | 'fromAccountId' | 'toAccountId' | 'accountId'>,
+  goal: Pick<Goal, 'type' | 'accountId'>,
 ): number {
-  if (goalType === 'savings') {
+  if (goal.type === 'savings') {
     if (tx.type === 'income') return tx.amount;
     if (tx.type === 'expense') return -tx.amount;
+    if (tx.type === 'transfer' && goal.accountId) {
+      if (tx.toAccountId === goal.accountId) return tx.amount;
+      if (tx.fromAccountId === goal.accountId) return -tx.amount;
+    }
     return 0;
   }
   if (tx.type === 'expense') return tx.amount;
   return 0;
+}
+
+function linkedAccountTxCondition(accountId: string) {
+  return or(
+    and(
+      eq(transactions.accountId, accountId),
+      or(eq(transactions.type, 'income'), eq(transactions.type, 'expense')),
+    ),
+    and(
+      eq(transactions.type, 'transfer'),
+      or(eq(transactions.fromAccountId, accountId), eq(transactions.toAccountId, accountId)),
+    ),
+  );
+}
+
+async function getGoalContributingTransactions(goal: Goal): Promise<Transaction[]> {
+  const db = getDb();
+  const byId = new Map<string, Transaction>();
+
+  if (goal.type === 'savings' && goal.accountId) {
+    const onAccount = await db
+      .select()
+      .from(transactions)
+      .where(linkedAccountTxCondition(goal.accountId));
+    for (const tx of onAccount) byId.set(tx.id, tx);
+  }
+
+  const tagged = await db.select().from(transactions).where(eq(transactions.goalId, goal.id));
+  for (const tx of tagged) byId.set(tx.id, tx);
+
+  return [...byId.values()].sort((a, b) => {
+    if (a.date !== b.date) return b.date - a.date;
+    return b.createdAt - a.createdAt;
+  });
+}
+
+async function syncGoalsForLinkedAccounts(
+  ...accountIds: (string | null | undefined)[]
+): Promise<void> {
+  const seen = new Set<string>();
+  for (const accountId of accountIds) {
+    if (!accountId || seen.has(accountId)) continue;
+    seen.add(accountId);
+    const goal = await getActiveGoalByAccountId(accountId);
+    if (goal) await syncGoalCompletion(goal.id);
+  }
 }
 
 export type BudgetVsActualItem = {
@@ -509,7 +566,11 @@ export async function createTransaction(
   const db = getDb();
   const resolvedGoalId =
     data.type === 'transfer'
-      ? null
+      ? await resolveGoalIdForTransfer({
+          fromAccountId: data.fromAccountId,
+          toAccountId: data.toAccountId,
+          manualGoalId: data.goalId,
+        })
       : await resolveGoalIdForTransaction({
           accountId: data.accountId,
           type: data.type,
@@ -522,6 +583,7 @@ export async function createTransaction(
     goalId: resolvedGoalId,
   };
   await db.insert(transactions).values(row);
+  await syncGoalsForLinkedAccounts(data.accountId, data.fromAccountId, data.toAccountId);
   if (row.goalId) await syncGoalCompletion(row.goalId);
   return row as Transaction;
 }
@@ -536,11 +598,18 @@ export async function updateTransaction(
 
   const mergedType = data.type ?? old.type;
   const mergedAccountId = data.accountId !== undefined ? data.accountId : old.accountId;
+  const mergedFromAccountId =
+    data.fromAccountId !== undefined ? data.fromAccountId : old.fromAccountId;
+  const mergedToAccountId = data.toAccountId !== undefined ? data.toAccountId : old.toAccountId;
   const manualGoalId = data.goalId !== undefined ? data.goalId : old.goalId;
 
   let goalId = manualGoalId;
   if (mergedType === 'transfer') {
-    goalId = null;
+    goalId = await resolveGoalIdForTransfer({
+      fromAccountId: mergedFromAccountId,
+      toAccountId: mergedToAccountId,
+      manualGoalId,
+    });
   } else if (
     data.accountId !== undefined ||
     data.type !== undefined ||
@@ -555,6 +624,14 @@ export async function updateTransaction(
 
   await db.update(transactions).set({ ...data, goalId }).where(eq(transactions.id, id));
 
+  await syncGoalsForLinkedAccounts(
+    old.accountId,
+    old.fromAccountId,
+    old.toAccountId,
+    mergedAccountId,
+    mergedFromAccountId,
+    mergedToAccountId,
+  );
   const affected = new Set([old.goalId, goalId].filter((g): g is string => !!g));
   for (const gid of affected) {
     await syncGoalCompletion(gid);
@@ -565,7 +642,9 @@ export async function deleteTransaction(id: string): Promise<void> {
   const db = getDb();
   const old = await getTransactionById(id);
   await db.delete(transactions).where(eq(transactions.id, id));
-  if (old?.goalId) await syncGoalCompletion(old.goalId);
+  if (!old) return;
+  await syncGoalsForLinkedAccounts(old.accountId, old.fromAccountId, old.toAccountId);
+  if (old.goalId) await syncGoalCompletion(old.goalId);
 }
 
 export async function getPeriodSummary(
@@ -826,6 +905,24 @@ export async function resolveGoalIdForTransaction(params: {
   return params.manualGoalId ?? null;
 }
 
+export async function resolveGoalIdForTransfer(params: {
+  fromAccountId?: string | null;
+  toAccountId?: string | null;
+  manualGoalId?: string | null;
+}): Promise<string | null> {
+  const toGoal = params.toAccountId
+    ? await getActiveGoalByAccountId(params.toAccountId)
+    : undefined;
+  if (toGoal?.type === 'savings') return toGoal.id;
+
+  const fromGoal = params.fromAccountId
+    ? await getActiveGoalByAccountId(params.fromAccountId)
+    : undefined;
+  if (fromGoal?.type === 'savings') return fromGoal.id;
+
+  return params.manualGoalId ?? null;
+}
+
 export async function countBackfillableTransactions(goalId: string): Promise<number> {
   const goal = await getGoalById(goalId);
   if (!goal?.accountId || goal.type !== 'savings') return 0;
@@ -834,13 +931,7 @@ export async function countBackfillableTransactions(goalId: string): Promise<num
   const rows = await db
     .select()
     .from(transactions)
-    .where(
-      and(
-        eq(transactions.accountId, goal.accountId),
-        isNull(transactions.goalId),
-        or(eq(transactions.type, 'income'), eq(transactions.type, 'expense')),
-      ),
-    );
+    .where(and(linkedAccountTxCondition(goal.accountId), isNull(transactions.goalId)));
   return rows.length;
 }
 
@@ -852,13 +943,7 @@ export async function backfillGoalTransactions(goalId: string): Promise<number> 
   const rows = await db
     .select()
     .from(transactions)
-    .where(
-      and(
-        eq(transactions.accountId, goal.accountId),
-        isNull(transactions.goalId),
-        or(eq(transactions.type, 'income'), eq(transactions.type, 'expense')),
-      ),
-    );
+    .where(and(linkedAccountTxCondition(goal.accountId), isNull(transactions.goalId)));
 
   for (const tx of rows) {
     await db.update(transactions).set({ goalId }).where(eq(transactions.id, tx.id));
@@ -869,12 +954,9 @@ export async function backfillGoalTransactions(goalId: string): Promise<number> 
 }
 
 export async function getGoalTransactions(goalId: string): Promise<Transaction[]> {
-  const db = getDb();
-  return db
-    .select()
-    .from(transactions)
-    .where(eq(transactions.goalId, goalId))
-    .orderBy(desc(transactions.date), desc(transactions.createdAt));
+  const goal = await getGoalById(goalId);
+  if (!goal) return [];
+  return getGoalContributingTransactions(goal);
 }
 
 export async function getGoalProgress(goalId: string): Promise<GoalProgress | null> {
@@ -882,15 +964,9 @@ export async function getGoalProgress(goalId: string): Promise<GoalProgress | nu
   const [goal] = await db.select().from(goals).where(eq(goals.id, goalId)).limit(1);
   if (!goal) return null;
 
-  const linkedTxs = await db
-    .select()
-    .from(transactions)
-    .where(eq(transactions.goalId, goalId));
+  const linkedTxs = await getGoalContributingTransactions(goal);
 
-  const linked = linkedTxs.reduce(
-    (sum, tx) => sum + signedGoalContribution(tx, goal.type),
-    0,
-  );
+  const linked = linkedTxs.reduce((sum, tx) => sum + signedGoalContribution(tx, goal), 0);
   const progress = goal.startingBalance + linked;
   const remaining = Math.max(0, goal.targetAmount - progress);
   const percent = goal.targetAmount > 0 ? Math.min(100, (progress / goal.targetAmount) * 100) : 0;
@@ -902,17 +978,15 @@ export async function getGoalContributionTimeline(goalId: string): Promise<GoalT
   const progress = await getGoalProgress(goalId);
   if (!progress) return [];
 
-  const db = getDb();
-  const linkedTxs = await db
-    .select()
-    .from(transactions)
-    .where(eq(transactions.goalId, goalId))
-    .orderBy(asc(transactions.date), asc(transactions.createdAt));
+  const linkedTxs = [...(await getGoalContributingTransactions(progress.goal))].sort((a, b) => {
+    if (a.date !== b.date) return a.date - b.date;
+    return a.createdAt - b.createdAt;
+  });
 
   const contributions = linkedTxs
     .map((tx) => ({
       date: tx.date,
-      contribution: signedGoalContribution(tx, progress.goal.type),
+      contribution: signedGoalContribution(tx, progress.goal),
     }))
     .filter((p) => p.contribution !== 0);
 
@@ -957,10 +1031,62 @@ export async function getGoalContributionTimeline(goalId: string): Promise<GoalT
   return points;
 }
 
-export async function getGoalsWithProgress(): Promise<GoalProgress[]> {
-  const rows = await getGoals();
+export async function getGoalsWithProgress(status?: Goal['status']): Promise<GoalProgress[]> {
+  const rows = status ? await getGoals(status) : await getGoals();
   const results = await Promise.all(rows.map((g) => getGoalProgress(g.id)));
   return results.filter((r): r is GoalProgress => r !== null);
+}
+
+export async function getActiveGoalsWithProgress(limit?: number): Promise<GoalProgress[]> {
+  const rows = await getGoalsWithProgress('active');
+  if (limit !== undefined) {
+    return rows.slice(0, limit);
+  }
+  return rows;
+}
+
+export async function getGoalStats(goalId: string): Promise<GoalStats | null> {
+  const progress = await getGoalProgress(goalId);
+  if (!progress) return null;
+
+  const txs = await getGoalContributingTransactions(progress.goal);
+  const now = new Date();
+  const monthStart = startOfMonth(now).getTime();
+  const monthEnd = endOfMonth(now).getTime();
+
+  let thisMonthContribution = 0;
+  let totalFromTxs = 0;
+  for (const tx of txs) {
+    const signed = signedGoalContribution(tx, progress.goal);
+    totalFromTxs += signed;
+    if (tx.date >= monthStart && tx.date <= monthEnd) {
+      thisMonthContribution += signed;
+    }
+  }
+
+  const monthsSinceCreation = Math.max(
+    1,
+    differenceInMonths(now, new Date(progress.goal.createdAt)) + 1,
+  );
+
+  return {
+    startingBalance: progress.goal.startingBalance,
+    thisMonthContribution,
+    averageMonthlyContribution: totalFromTxs / monthsSinceCreation,
+    transactionCount: txs.length,
+  };
+}
+
+export async function saveGoalUpdates(
+  id: string,
+  data: Partial<Omit<NewGoal, 'id' | 'createdAt'>>,
+): Promise<void> {
+  await updateGoal(id, data);
+  await syncGoalCompletion(id);
+}
+
+export async function archiveGoal(id: string): Promise<void> {
+  await updateGoal(id, { status: 'archived' });
 }
 
 export async function createGoal(data: Omit<NewGoal, 'id' | 'createdAt' | 'status'>): Promise<Goal> {
@@ -984,13 +1110,35 @@ export async function updateGoal(
   await db.update(goals).set(data).where(eq(goals.id, id));
 }
 
+export type SetGoalLinkedAccountResult =
+  | { ok: true }
+  | { ok: false; reason: string };
+
+export async function setGoalLinkedAccount(
+  goalId: string,
+  accountId: string | null,
+): Promise<SetGoalLinkedAccountResult> {
+  const goal = await getGoalById(goalId);
+  if (!goal) return { ok: false, reason: 'Goal not found' };
+  if (goal.type !== 'savings') {
+    return { ok: false, reason: 'Only savings goals can link an account' };
+  }
+  if (accountId && (await isAccountLinkedToActiveGoal(accountId, goalId))) {
+    return { ok: false, reason: 'This account is already linked to another active goal' };
+  }
+
+  await updateGoal(goalId, { accountId });
+  await syncGoalCompletion(goalId);
+  return { ok: true };
+}
+
 export async function deleteGoal(id: string): Promise<void> {
   const db = getDb();
   await db.update(transactions).set({ goalId: null }).where(eq(transactions.goalId, id));
   await db.delete(goals).where(eq(goals.id, id));
 }
 
-async function syncGoalCompletion(goalId: string): Promise<void> {
+export async function syncGoalCompletion(goalId: string): Promise<void> {
   const progress = await getGoalProgress(goalId);
   if (!progress) return;
 

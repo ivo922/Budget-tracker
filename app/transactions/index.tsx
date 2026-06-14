@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, type SectionList, type SectionListData, type ViewToken } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -113,12 +113,10 @@ export default function AllTransactionsScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
 
-  const effectiveAccountFilter = filterAccount ?? routeAccountId;
-
   const load = useCallback(async () => {
     setLoading(true);
     const [txs, goalRows] = await Promise.all([getTransactions({
-      accountId: effectiveAccountFilter,
+      accountId: filterAccount,
       type: filterType,
     }), getGoals()]);
     const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
@@ -130,13 +128,14 @@ export default function AllTransactionsScreen() {
         fromAccount: tx.fromAccountId ? await getAccountById(tx.fromAccountId) : undefined,
         toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
         goalName: tx.goalId ? goalMap.get(tx.goalId) : undefined,
+        goalId: tx.goalId ?? undefined,
       })),
     );
     setItems(enriched);
     const sections = buildTransactionDaySections(enriched);
     setActiveMonth(sections[0]?.monthKey ?? null);
     setLoading(false);
-  }, [effectiveAccountFilter, filterType, refreshKey]);
+  }, [filterAccount, filterType, refreshKey]);
 
   const daySections = useMemo(() => buildTransactionDaySections(items), [items]);
 
@@ -211,7 +210,7 @@ export default function AllTransactionsScreen() {
       >
         {showMonthIsland ? <View style={{ height: islandSpacerHeight }} /> : null}
         <FiltersHeader
-          filterAccount={effectiveAccountFilter}
+          filterAccount={filterAccount}
           filterType={filterType}
           accounts={accounts}
           menuVisible={menuVisible}
@@ -221,19 +220,25 @@ export default function AllTransactionsScreen() {
         />
       </View>
     ),
-    [effectiveAccountFilter, filterType, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
+    [filterAccount, filterType, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
   );
+
+  useEffect(() => {
+    if (routeAccountId) {
+      setFilterAccount(routeAccountId);
+    }
+  }, [routeAccountId]);
 
   useFocusEffect(
     useCallback(() => {
       if (!ready) return;
       getAccounts().then(setAccounts);
-      if (routeAccountId) {
-        setFilterAccount(routeAccountId);
-      }
-      load();
-    }, [ready, load, routeAccountId]),
+    }, [ready]),
   );
+
+  useEffect(() => {
+    if (ready) load();
+  }, [ready, load]);
 
   if (!ready || loading) {
     return (
@@ -292,6 +297,7 @@ export default function AllTransactionsScreen() {
           onScroll={scrollHandler}
           scrollEventThrottle={16}
           onPressItem={(id) => router.push(`/transaction/${id}`)}
+          onPressGoal={(goalId) => router.push(`/goal/${goalId}`)}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
         />
