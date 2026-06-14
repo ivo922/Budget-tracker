@@ -1,5 +1,5 @@
 import * as Crypto from 'expo-crypto';
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, startOfWeek } from 'date-fns';
 import {
   and,
   asc,
@@ -24,6 +24,7 @@ import {
   type Budget,
   type Category,
   type Goal,
+  type GoalType,
   type NewAccount,
   type NewBudget,
   type NewCategory,
@@ -66,6 +67,25 @@ export type GoalProgress = {
   remaining: number;
   percent: number;
 };
+
+export type GoalTimelinePoint = {
+  date: string;
+  cumulative: number;
+  contribution: number;
+};
+
+export function signedGoalContribution(
+  tx: Pick<Transaction, 'type' | 'amount'>,
+  goalType: GoalType,
+): number {
+  if (goalType === 'savings') {
+    if (tx.type === 'income') return tx.amount;
+    if (tx.type === 'expense') return -tx.amount;
+    return 0;
+  }
+  if (tx.type === 'expense') return tx.amount;
+  return 0;
+}
 
 export type BudgetVsActualItem = {
   categoryId: string;
@@ -276,14 +296,22 @@ export async function createTransaction(
   data: Omit<NewTransaction, 'id' | 'createdAt'>,
 ): Promise<Transaction> {
   const db = getDb();
+  const resolvedGoalId =
+    data.type === 'transfer'
+      ? null
+      : await resolveGoalIdForTransaction({
+          accountId: data.accountId,
+          type: data.type,
+          manualGoalId: data.goalId,
+        });
   const row: NewTransaction = {
+    ...data,
     id: Crypto.randomUUID(),
     createdAt: Date.now(),
-    goalId: null,
-    ...data,
+    goalId: resolvedGoalId,
   };
   await db.insert(transactions).values(row);
-  if (row.goalId) await maybeCompleteGoal(row.goalId);
+  if (row.goalId) await syncGoalCompletion(row.goalId);
   return row as Transaction;
 }
 
@@ -292,13 +320,41 @@ export async function updateTransaction(
   data: Partial<Omit<NewTransaction, 'id' | 'createdAt'>>,
 ): Promise<void> {
   const db = getDb();
-  await db.update(transactions).set(data).where(eq(transactions.id, id));
-  if (data.goalId) await maybeCompleteGoal(data.goalId);
+  const old = await getTransactionById(id);
+  if (!old) return;
+
+  const mergedType = data.type ?? old.type;
+  const mergedAccountId = data.accountId !== undefined ? data.accountId : old.accountId;
+  const manualGoalId = data.goalId !== undefined ? data.goalId : old.goalId;
+
+  let goalId = manualGoalId;
+  if (mergedType === 'transfer') {
+    goalId = null;
+  } else if (
+    data.accountId !== undefined ||
+    data.type !== undefined ||
+    data.goalId !== undefined
+  ) {
+    goalId = await resolveGoalIdForTransaction({
+      accountId: mergedAccountId,
+      type: mergedType,
+      manualGoalId,
+    });
+  }
+
+  await db.update(transactions).set({ ...data, goalId }).where(eq(transactions.id, id));
+
+  const affected = new Set([old.goalId, goalId].filter((g): g is string => !!g));
+  for (const gid of affected) {
+    await syncGoalCompletion(gid);
+  }
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
   const db = getDb();
+  const old = await getTransactionById(id);
   await db.delete(transactions).where(eq(transactions.id, id));
+  if (old?.goalId) await syncGoalCompletion(old.goalId);
 }
 
 export async function getPeriodSummary(
@@ -512,22 +568,182 @@ export async function getActiveGoals(): Promise<Goal[]> {
   return getGoals('active');
 }
 
+export async function getGoalById(id: string): Promise<Goal | undefined> {
+  const db = getDb();
+  const rows = await db.select().from(goals).where(eq(goals.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function getActiveGoalByAccountId(accountId: string): Promise<Goal | undefined> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(goals)
+    .where(
+      and(
+        eq(goals.accountId, accountId),
+        eq(goals.status, 'active'),
+        eq(goals.type, 'savings'),
+      ),
+    )
+    .limit(1);
+  return rows[0];
+}
+
+export async function isAccountLinkedToActiveGoal(
+  accountId: string,
+  excludeGoalId?: string,
+): Promise<boolean> {
+  const goal = await getActiveGoalByAccountId(accountId);
+  if (!goal) return false;
+  if (excludeGoalId && goal.id === excludeGoalId) return false;
+  return true;
+}
+
+export async function resolveGoalIdForTransaction(params: {
+  accountId?: string | null;
+  type: TransactionType;
+  manualGoalId?: string | null;
+}): Promise<string | null> {
+  if (params.type === 'transfer' || !params.accountId) {
+    return params.manualGoalId ?? null;
+  }
+
+  const linkedGoal = await getActiveGoalByAccountId(params.accountId);
+  if (linkedGoal?.type === 'savings') return linkedGoal.id;
+
+  return params.manualGoalId ?? null;
+}
+
+export async function countBackfillableTransactions(goalId: string): Promise<number> {
+  const goal = await getGoalById(goalId);
+  if (!goal?.accountId || goal.type !== 'savings') return 0;
+
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.accountId, goal.accountId),
+        isNull(transactions.goalId),
+        or(eq(transactions.type, 'income'), eq(transactions.type, 'expense')),
+      ),
+    );
+  return rows.length;
+}
+
+export async function backfillGoalTransactions(goalId: string): Promise<number> {
+  const goal = await getGoalById(goalId);
+  if (!goal?.accountId || goal.type !== 'savings') return 0;
+
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.accountId, goal.accountId),
+        isNull(transactions.goalId),
+        or(eq(transactions.type, 'income'), eq(transactions.type, 'expense')),
+      ),
+    );
+
+  for (const tx of rows) {
+    await db.update(transactions).set({ goalId }).where(eq(transactions.id, tx.id));
+  }
+
+  if (rows.length > 0) await syncGoalCompletion(goalId);
+  return rows.length;
+}
+
+export async function getGoalTransactions(goalId: string): Promise<Transaction[]> {
+  const db = getDb();
+  return db
+    .select()
+    .from(transactions)
+    .where(eq(transactions.goalId, goalId))
+    .orderBy(desc(transactions.date), desc(transactions.createdAt));
+}
+
 export async function getGoalProgress(goalId: string): Promise<GoalProgress | null> {
   const db = getDb();
   const [goal] = await db.select().from(goals).where(eq(goals.id, goalId)).limit(1);
   if (!goal) return null;
 
-  const [row] = await db
-    .select({ total: sum(transactions.amount) })
+  const linkedTxs = await db
+    .select()
     .from(transactions)
     .where(eq(transactions.goalId, goalId));
 
-  const linked = Number(row?.total ?? 0);
+  const linked = linkedTxs.reduce(
+    (sum, tx) => sum + signedGoalContribution(tx, goal.type),
+    0,
+  );
   const progress = goal.startingBalance + linked;
   const remaining = Math.max(0, goal.targetAmount - progress);
   const percent = goal.targetAmount > 0 ? Math.min(100, (progress / goal.targetAmount) * 100) : 0;
 
   return { goal, progress, remaining, percent };
+}
+
+export async function getGoalContributionTimeline(goalId: string): Promise<GoalTimelinePoint[]> {
+  const progress = await getGoalProgress(goalId);
+  if (!progress) return [];
+
+  const db = getDb();
+  const linkedTxs = await db
+    .select()
+    .from(transactions)
+    .where(eq(transactions.goalId, goalId))
+    .orderBy(asc(transactions.date), asc(transactions.createdAt));
+
+  const contributions = linkedTxs
+    .map((tx) => ({
+      date: tx.date,
+      contribution: signedGoalContribution(tx, progress.goal.type),
+    }))
+    .filter((p) => p.contribution !== 0);
+
+  if (contributions.length === 0) {
+    return [
+      {
+        date: format(new Date(progress.goal.createdAt), 'yyyy-MM-dd'),
+        cumulative: progress.goal.startingBalance,
+        contribution: 0,
+      },
+    ];
+  }
+
+  const spanDays =
+    (contributions[contributions.length - 1].date - contributions[0].date) / 86_400_000;
+  const bucketByWeek = spanDays > 90;
+
+  const buckets = new Map<string, number>();
+  for (const { date, contribution } of contributions) {
+    const key = bucketByWeek
+      ? format(startOfWeek(new Date(date)), 'yyyy-MM-dd')
+      : format(new Date(date), 'yyyy-MM-dd');
+    buckets.set(key, (buckets.get(key) ?? 0) + contribution);
+  }
+
+  const sortedKeys = [...buckets.keys()].sort();
+  const points: GoalTimelinePoint[] = [
+    {
+      date: sortedKeys[0],
+      cumulative: progress.goal.startingBalance,
+      contribution: 0,
+    },
+  ];
+
+  let cumulative = progress.goal.startingBalance;
+  for (const key of sortedKeys) {
+    const contribution = buckets.get(key) ?? 0;
+    cumulative += contribution;
+    points.push({ date: key, cumulative, contribution });
+  }
+
+  return points;
 }
 
 export async function getGoalsWithProgress(): Promise<GoalProgress[]> {
@@ -543,6 +759,7 @@ export async function createGoal(data: Omit<NewGoal, 'id' | 'createdAt' | 'statu
     createdAt: Date.now(),
     status: 'active',
     ...data,
+    accountId: data.type === 'loan' ? null : (data.accountId ?? null),
   };
   await db.insert(goals).values(row);
   return row as Goal;
@@ -562,11 +779,14 @@ export async function deleteGoal(id: string): Promise<void> {
   await db.delete(goals).where(eq(goals.id, id));
 }
 
-async function maybeCompleteGoal(goalId: string): Promise<void> {
+async function syncGoalCompletion(goalId: string): Promise<void> {
   const progress = await getGoalProgress(goalId);
-  if (!progress || progress.goal.status !== 'active') return;
-  if (progress.progress >= progress.goal.targetAmount) {
+  if (!progress) return;
+
+  if (progress.goal.status === 'active' && progress.progress >= progress.goal.targetAmount) {
     await updateGoal(goalId, { status: 'completed' });
+  } else if (progress.goal.status === 'completed' && progress.progress < progress.goal.targetAmount) {
+    await updateGoal(goalId, { status: 'active' });
   }
 }
 

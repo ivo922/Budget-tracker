@@ -161,7 +161,26 @@ docs/
 
 ## Goals (loans & savings)
 
-Goals tab: create savings or loan goals, track progress bars, link transactions via goal picker on add/edit forms. Auto-completes when progress reaches target.
+Goals tab: create savings or loan goals, track progress, view detail with contribution chart and transaction history. Savings goals can link an account for auto-tracking; loan goals use manual transaction linking.
+
+### Progress rules
+
+- **Savings:** `starting_balance + income linked − expense linked` (net)
+- **Loan:** `starting_balance + expense linked only` (manual linking via goal picker)
+
+### Account auto-link (savings only)
+
+When a **savings** goal has `account_id` set:
+
+- All income and expense on that account auto-assign `goal_id`
+- One active savings goal per account (validated on create)
+- On link, optional backfill of existing account transactions
+
+Loan goals do not support account linking. Link expense transactions manually via the goal picker.
+
+Manual goal picker when no account is linked: savings goals for income, loan goals for expense.
+
+Auto-completes when progress reaches target; reverts to active if progress drops.
 
 ## Monthly budgets
 
@@ -176,17 +195,12 @@ Goals tab: create savings or loan goals, track progress bars, link transactions 
 | `target_amount` | Loan principal or savings target |
 | `starting_balance` | Already paid off / already saved at creation |
 | `target_date` | Optional deadline |
-| `account_id` | Optional linked account |
+| `account_id` | Optional linked account (savings only) |
 | `status` | `active`, `completed`, `archived` |
 
 ### Transaction linking
 
-Nullable `transactions.goal_id`:
-
-- **Loan payment:** expense linked to loan → counts toward payoff
-- **Savings deposit:** income linked to savings → counts toward target
-
-**Progress:** `starting_balance + SUM(linked transaction amounts)`
+Nullable `transactions.goal_id` — set manually via goal picker, or automatically for savings when the transaction account matches the goal's linked account.
 
 ### Still planned
 

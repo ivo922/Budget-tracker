@@ -13,6 +13,7 @@ type Props = {
   category?: Category;
   fromAccount?: Account;
   toAccount?: Account;
+  goalName?: string;
   onPress?: () => void;
 };
 
@@ -28,6 +29,7 @@ export function TransactionRow({
   category,
   fromAccount,
   toAccount,
+  goalName,
   onPress,
 }: Props) {
   const theme = useAppTheme();
@@ -46,7 +48,10 @@ export function TransactionRow({
   }
 
   const time = format(new Date(transaction.date), 'HH:mm');
-  const meta = [account?.name, category?.name].filter(Boolean).join(' · ');
+  const metaParts = [account?.name, category?.name, goalName ? `Goal: ${goalName}` : undefined].filter(
+    Boolean,
+  );
+  const meta = metaParts.join(' · ');
   const description =
     transaction.type === 'transfer' ? `Transfer · ${time}` : meta ? `${meta} · ${time}` : time;
 

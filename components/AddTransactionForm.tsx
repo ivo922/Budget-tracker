@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
@@ -12,6 +12,7 @@ import { useApp } from '@/lib/context/AppContext';
 import {
   createTransaction,
   getAccounts,
+  getActiveGoalByAccountId,
   getActiveGoals,
   getParentCategories,
   getSubcategories,
@@ -43,6 +44,7 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
   const [error, setError] = useState('');
   const [goalList, setGoalList] = useState<Goal[]>([]);
   const [goalId, setGoalId] = useState<string | undefined>();
+  const [autoLinkedGoal, setAutoLinkedGoal] = useState<Goal | undefined>();
   const [saving, setSaving] = useState(false);
 
   const accountOptions = useMemo(
@@ -85,6 +87,34 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
       setCategoryId(rows[0]?.id ?? parentCategoryId);
     });
   }, [parentCategoryId, type]);
+
+  useEffect(() => {
+    if (type === 'transfer' || !accountId) {
+      setAutoLinkedGoal(undefined);
+      return;
+    }
+    getActiveGoalByAccountId(accountId).then((goal) => {
+      if (!goal || goal.type !== 'savings') {
+        setAutoLinkedGoal(undefined);
+        return;
+      }
+      setAutoLinkedGoal(goal);
+      setGoalId(undefined);
+    });
+  }, [accountId, type]);
+
+  const manualGoalOptions = useMemo(() => {
+    if (autoLinkedGoal) return [];
+    const filtered = goalList.filter((g) => {
+      if (type === 'income') return g.type === 'savings';
+      if (type === 'expense') return g.type === 'loan';
+      return false;
+    });
+    return filtered.map((g) => ({
+      value: g.id,
+      label: `${g.name} (${g.type === 'loan' ? 'Loan' : 'Savings'})`,
+    }));
+  }, [goalList, type, autoLinkedGoal]);
 
   const handleSave = async () => {
     setError('');
@@ -208,11 +238,22 @@ export function AddTransactionForm({ onClose, onSaved }: Props) {
           icon="calendar-outline"
         />
 
-        {type !== 'transfer' && goalList.length > 0 ? (
+        {type !== 'transfer' && autoLinkedGoal ? (
+          <View>
+            <Text variant="labelMedium" style={{ marginBottom: 4 }}>
+              Goal
+            </Text>
+            <Text variant="bodyMedium">
+              Tracking: {autoLinkedGoal.name} ({autoLinkedGoal.type === 'loan' ? 'Loan' : 'Savings'})
+            </Text>
+          </View>
+        ) : null}
+
+        {type !== 'transfer' && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
           <InlineSelect
             label="Goal"
             value={goalId}
-            options={goalList.map((g) => ({ value: g.id, label: g.name }))}
+            options={manualGoalOptions}
             onChange={setGoalId}
             allowClear
           />

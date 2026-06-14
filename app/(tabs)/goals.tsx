@@ -12,22 +12,40 @@ import { useApp } from '@/lib/context/AppContext';
 import { layoutStyles } from '@/lib/layout';
 import { navigateToConfirm } from '@/lib/navigateConfirm';
 import { useAppTheme } from '@/lib/useAppTheme';
-import { getGoalsWithProgress } from '@/lib/db/queries';
+import { getAccountBalance, getAccountById, getGoalsWithProgress } from '@/lib/db/queries';
 import type { GoalProgress } from '@/lib/db/queries';
 
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<GoalProgress>);
+type GoalListItem = GoalProgress & {
+  linkedAccountName?: string;
+  linkedAccountBalance?: number;
+};
+
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<GoalListItem>);
 
 export default function GoalsScreen() {
   const router = useRouter();
   const { ready } = useApp();
   const theme = useAppTheme();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
-  const [items, setItems] = useState<GoalProgress[]>([]);
+  const [items, setItems] = useState<GoalListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setItems(await getGoalsWithProgress());
+    const goals = await getGoalsWithProgress();
+    const enriched = await Promise.all(
+      goals.map(async (item) => {
+        if (!item.goal.accountId || item.goal.type !== 'savings') return item;
+        const account = await getAccountById(item.goal.accountId);
+        if (!account) return item;
+        return {
+          ...item,
+          linkedAccountName: account.name,
+          linkedAccountBalance: await getAccountBalance(account.id),
+        };
+      }),
+    );
+    setItems(enriched);
     setLoading(false);
   }, []);
 
@@ -68,7 +86,12 @@ export default function GoalsScreen() {
           contentContainerStyle={scrollContentStyle}
           renderItem={({ item }) => (
             <View style={styles.cardWrap}>
-              <GoalCard item={item} />
+              <GoalCard
+                item={item}
+                linkedAccountName={item.linkedAccountName}
+                linkedAccountBalance={item.linkedAccountBalance}
+                onPress={() => router.push(`/goal/${item.goal.id}`)}
+              />
               {item.goal.status === 'active' ? (
                 <Button
                   mode="text"

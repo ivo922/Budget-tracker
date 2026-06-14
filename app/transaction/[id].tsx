@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import {
@@ -20,6 +20,7 @@ import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
 import {
   getAccounts,
+  getActiveGoalByAccountId,
   getActiveGoals,
   getParentCategories,
   getSubcategories,
@@ -59,6 +60,7 @@ export default function EditTransactionScreen() {
   const [goalList, setGoalList] = useState<Goal[]>([]);
   const [goalId, setGoalId] = useState<string | undefined>();
   const [goalMenu, setGoalMenu] = useState(false);
+  const [autoLinkedGoal, setAutoLinkedGoal] = useState<Goal | undefined>();
 
   useEffect(() => {
     getActiveGoals().then(setGoalList);
@@ -120,6 +122,29 @@ export default function EditTransactionScreen() {
       if (rows.length === 0) setCategoryId(parentCategoryId);
     });
   }, [parentCategoryId, type]);
+
+  useEffect(() => {
+    if (type === 'transfer' || !accountId) {
+      setAutoLinkedGoal(undefined);
+      return;
+    }
+    getActiveGoalByAccountId(accountId).then((goal) => {
+      if (!goal || goal.type !== 'savings') {
+        setAutoLinkedGoal(undefined);
+        return;
+      }
+      setAutoLinkedGoal(goal);
+    });
+  }, [accountId, type]);
+
+  const manualGoalOptions = useMemo(() => {
+    if (autoLinkedGoal) return [];
+    return goalList.filter((g) => {
+      if (type === 'income') return g.type === 'savings';
+      if (type === 'expense') return g.type === 'loan';
+      return false;
+    });
+  }, [goalList, type, autoLinkedGoal]);
 
   const handleSave = async () => {
     if (!id) return;
@@ -235,19 +260,28 @@ export default function EditTransactionScreen() {
         {showDatePicker && (
           <DateTimePicker value={date} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, s) => { setShowDatePicker(Platform.OS === 'ios'); if (s) setDate(s); }} />
         )}
-        {type !== 'transfer' && goalList.length > 0 ? (
+        {type !== 'transfer' && autoLinkedGoal ? (
+          <Text variant="bodyMedium" style={styles.autoGoal}>
+            Tracking: {autoLinkedGoal.name} ({autoLinkedGoal.type === 'loan' ? 'Loan' : 'Savings'})
+          </Text>
+        ) : null}
+        {type !== 'transfer' && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
           <ThemedMenu
             visible={goalMenu}
             onDismiss={() => setGoalMenu(false)}
             anchor={
               <Button mode="outlined" onPress={() => setGoalMenu(true)}>
-                Goal: {goalList.find((g) => g.id === goalId)?.name ?? 'None'}
+                Goal: {manualGoalOptions.find((g) => g.id === goalId)?.name ?? 'None'}
               </Button>
             }
           >
             <ThemedMenuItem title="None" onPress={() => { setGoalId(undefined); setGoalMenu(false); }} />
-            {goalList.map((g) => (
-              <ThemedMenuItem key={g.id} title={g.name} onPress={() => { setGoalId(g.id); setGoalMenu(false); }} />
+            {manualGoalOptions.map((g) => (
+              <ThemedMenuItem
+                key={g.id}
+                title={`${g.name} (${g.type === 'loan' ? 'Loan' : 'Savings'})`}
+                onPress={() => { setGoalId(g.id); setGoalMenu(false); }}
+              />
             ))}
           </ThemedMenu>
         ) : null}
@@ -266,4 +300,5 @@ const styles = StyleSheet.create({
   content: { gap: 12, paddingBottom: SCREEN_PADDING },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
+  autoGoal: { marginVertical: 4 },
 });

@@ -22,6 +22,7 @@ export type TransactionListItem = {
   category?: Category;
   fromAccount?: Account;
   toAccount?: Account;
+  goalName?: string;
 };
 
 export type TransactionDaySection = {
@@ -105,6 +106,7 @@ export const TransactionGroupedList = forwardRef<
           category={item.category}
           fromAccount={item.fromAccount}
           toAccount={item.toAccount}
+          goalName={item.goalName}
           onPress={() => onPressItem(item.tx.id)}
         />
         {!isLast ? <Divider style={{ backgroundColor: theme.colors.outlineVariant }} /> : null}

@@ -55,6 +55,7 @@ function TransactionDayGroupRow({
         category={item.category}
         fromAccount={item.fromAccount}
         toAccount={item.toAccount}
+        goalName={item.goalName}
         onPress={onPress}
       />
       {!isLast ? <Divider style={{ backgroundColor: theme.colors.outlineVariant }} /> : null}

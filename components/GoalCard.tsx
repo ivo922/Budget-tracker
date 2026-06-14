@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ProgressBar, Text } from 'react-native-paper';
 import { formatCurrency } from '@/lib/format';
 import type { GoalProgress } from '@/lib/db/queries';
@@ -8,16 +8,19 @@ import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
   item: GoalProgress;
+  linkedAccountName?: string;
+  linkedAccountBalance?: number;
+  onPress?: () => void;
 };
 
-export function GoalCard({ item }: Props) {
+export function GoalCard({ item, linkedAccountName, linkedAccountBalance, onPress }: Props) {
   const theme = useAppTheme();
   const { goal, progress, remaining, percent } = item;
   const isLoan = goal.type === 'loan';
   const progressValue = percent / 100;
 
-  return (
-    <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+  const content = (
+    <>
       <View style={styles.header}>
         <Text variant="titleMedium" style={{ fontWeight: '600', flex: 1 }} numberOfLines={1}>
           {goal.name}
@@ -29,13 +32,48 @@ export function GoalCard({ item }: Props) {
       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
         {formatCurrency(progress)} of {formatCurrency(goal.targetAmount)}
       </Text>
-      <ProgressBar progress={progressValue} color={isLoan ? theme.colors.transfer : theme.colors.income} style={styles.bar} />
+      {linkedAccountName ? (
+        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+          {linkedAccountName}
+          {linkedAccountBalance !== undefined ? ` · ${formatCurrency(linkedAccountBalance)}` : ''}
+        </Text>
+      ) : null}
+      <ProgressBar
+        progress={progressValue}
+        color={isLoan ? theme.colors.transfer : theme.colors.income}
+        style={styles.bar}
+      />
       <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
         {goal.status === 'completed'
           ? 'Completed'
           : `${Math.round(percent)}% · ${formatCurrency(remaining)} ${isLoan ? 'left to pay' : 'to go'}`}
       </Text>
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View
+        style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
+      >
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.surface,
+          borderColor: theme.colors.outline,
+        },
+      ]}
+    >
+      {content}
+    </Pressable>
   );
 }
 

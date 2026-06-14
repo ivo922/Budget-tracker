@@ -19,6 +19,7 @@ import {
   getAccounts,
   getBudgetVsActual,
   getCategoryById,
+  getGoals,
   getPeriodSummary,
   getTotalNetBalance,
   getTransactions,
@@ -39,6 +40,7 @@ type EnrichedTx = {
   tx: Transaction;
   account?: Account;
   category?: Category;
+  goalName?: string;
 };
 
 export default function DashboardScreen() {
@@ -101,7 +103,7 @@ export default function DashboardScreen() {
 
     const accountFilter = accountFilterForSlide(nextSlides[safeIndex]);
     const range = getDashboardPeriodRange(period);
-    const [periodSummary, txs, budget] = await Promise.all([
+    const [periodSummary, txs, budget, goalRows] = await Promise.all([
       getPeriodSummary(range.start, range.end, accountFilter),
       getTransactions({ limit: 5, accountId: accountFilter }),
       getBudgetVsActual(
@@ -110,7 +112,9 @@ export default function DashboardScreen() {
         budgetMonthRange.start,
         budgetMonthRange.end,
       ),
+      getGoals(),
     ]);
+    const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
     setSummary(periodSummary);
     setBudgetSummary(budget);
     const enriched = await Promise.all(
@@ -118,6 +122,7 @@ export default function DashboardScreen() {
         tx,
         account: tx.accountId ? await getAccountById(tx.accountId) : undefined,
         category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
+        goalName: tx.goalId ? goalMap.get(tx.goalId) : undefined,
       })),
     );
     setRecent(enriched);

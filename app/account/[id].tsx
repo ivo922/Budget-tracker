@@ -12,6 +12,7 @@ import {
   getAccountBalance,
   getAccountById,
   getCategoryById,
+  getGoals,
   getTransactions,
 } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
@@ -39,7 +40,8 @@ export default function AccountDetailScreen() {
     }
     setAccount(acct);
     setBalance(await getAccountBalance(id));
-    const txs = await getTransactions({ accountId: id });
+    const [txs, goalRows] = await Promise.all([getTransactions({ accountId: id }), getGoals()]);
+    const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
     const enriched = await Promise.all(
       txs.map(async (tx) => ({
         tx,
@@ -47,6 +49,7 @@ export default function AccountDetailScreen() {
         category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
         fromAccount: tx.fromAccountId ? await getAccountById(tx.fromAccountId) : undefined,
         toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
+        goalName: tx.goalId ? goalMap.get(tx.goalId) : undefined,
       })),
     );
     setItems(enriched);
