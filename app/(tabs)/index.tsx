@@ -44,6 +44,8 @@ type EnrichedTx = {
   tx: Transaction;
   account?: Account;
   category?: Category;
+  fromAccount?: Account;
+  toAccount?: Account;
   goalName?: string;
   goalId?: string;
 };
@@ -154,6 +156,8 @@ export default function DashboardScreen() {
         tx,
         account: tx.accountId ? await getAccountById(tx.accountId) : undefined,
         category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
+        fromAccount: tx.fromAccountId ? await getAccountById(tx.fromAccountId) : undefined,
+        toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
         goalName: tx.goalId ? goalMap.get(tx.goalId) : undefined,
         goalId: tx.goalId ?? undefined,
       })),

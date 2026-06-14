@@ -1,8 +1,14 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useCallback, useRef } from 'react';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { format } from 'date-fns';
+import ReanimatedSwipeable, {
+  SwipeDirection,
+  type SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { Chip, Text } from 'react-native-paper';
+import { useApp } from '@/lib/context/AppContext';
+import { deleteTransaction, updateTransaction } from '@/lib/db/queries';
 import { formatCurrency } from '@/lib/format';
 import type { Account, Category, Transaction } from '@/lib/db/schema';
 import { layoutStyles } from '@/lib/layout';
@@ -27,7 +33,144 @@ const TYPE_ICONS = {
   transfer: 'swap-horizontal',
 } as const;
 
+const ACTION_WIDTH = 72;
+
 export function TransactionRow({
+  transaction,
+  account,
+  category,
+  fromAccount,
+  toAccount,
+  goalName,
+  goalId,
+  goalContribution,
+  onPress,
+  onPressGoal,
+}: Props) {
+  const theme = useAppTheme();
+  const { refresh } = useApp();
+  const swipeRef = useRef<SwipeableMethods>(null);
+  const actionInProgress = useRef(false);
+  const canTogglePaid = transaction.type !== 'transfer';
+
+  const handleTogglePaid = useCallback(async () => {
+    if (actionInProgress.current) return;
+    actionInProgress.current = true;
+    try {
+      await updateTransaction(transaction.id, { paid: !transaction.paid });
+      refresh();
+    } finally {
+      actionInProgress.current = false;
+      swipeRef.current?.close();
+    }
+  }, [refresh, transaction.id, transaction.paid]);
+
+  const promptDelete = useCallback(() => {
+    if (actionInProgress.current) return;
+    Alert.alert('Delete transaction?', 'This action cannot be undone.', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+        onPress: () => swipeRef.current?.close(),
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (actionInProgress.current) return;
+          actionInProgress.current = true;
+          try {
+            await deleteTransaction(transaction.id);
+            refresh();
+          } finally {
+            actionInProgress.current = false;
+          }
+        },
+      },
+    ]);
+  }, [refresh, transaction.id]);
+
+  const handleSwipeableOpen = useCallback(
+    (direction: SwipeDirection.LEFT | SwipeDirection.RIGHT) => {
+      if (direction === SwipeDirection.RIGHT && canTogglePaid) {
+        void handleTogglePaid();
+        return;
+      }
+      if (direction === SwipeDirection.LEFT) {
+        promptDelete();
+      }
+    },
+    [canTogglePaid, handleTogglePaid, promptDelete],
+  );
+
+  const renderPaidAction = useCallback(() => {
+    const label = transaction.paid ? 'Mark unpaid' : 'Mark paid';
+    const icon = transaction.paid ? 'clock-outline' : 'check-circle-outline';
+
+    return (
+      <View
+        style={[
+          styles.actionPanel,
+          { width: ACTION_WIDTH, backgroundColor: theme.colors.primary },
+        ]}
+      >
+        <MaterialCommunityIcons name={icon} size={22} color={theme.colors.onPrimary} />
+        <Text variant="labelSmall" style={[styles.actionLabel, { color: theme.colors.onPrimary }]}>
+          {label}
+        </Text>
+      </View>
+    );
+  }, [theme.colors.onPrimary, theme.colors.primary, transaction.paid]);
+
+  const renderDeleteAction = useCallback(
+    () => (
+      <Pressable
+        onPress={promptDelete}
+        style={[
+          styles.actionPanel,
+          styles.actionPressable,
+          { width: ACTION_WIDTH, backgroundColor: theme.colors.error },
+        ]}
+      >
+        <MaterialCommunityIcons name="trash-can-outline" size={22} color={theme.colors.onError} />
+        <Text variant="labelSmall" style={[styles.actionLabel, { color: theme.colors.onError }]}>
+          Delete
+        </Text>
+      </Pressable>
+    ),
+    [promptDelete, theme.colors.error, theme.colors.onError],
+  );
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeRef}
+      friction={2}
+      overshootFriction={8}
+      leftThreshold={ACTION_WIDTH / 2}
+      rightThreshold={ACTION_WIDTH / 2}
+      renderLeftActions={canTogglePaid ? renderPaidAction : undefined}
+      renderRightActions={renderDeleteAction}
+      onSwipeableOpen={handleSwipeableOpen}
+      containerStyle={styles.swipeContainer}
+      childrenContainerStyle={{ backgroundColor: theme.colors.surface }}
+    >
+      <TransactionRowContent
+        transaction={transaction}
+        account={account}
+        category={category}
+        fromAccount={fromAccount}
+        toAccount={toAccount}
+        goalName={goalName}
+        goalId={goalId}
+        goalContribution={goalContribution}
+        onPress={onPress}
+        onPressGoal={onPressGoal}
+      />
+    </ReanimatedSwipeable>
+  );
+}
+
+function TransactionRowContent({
   transaction,
   account,
   category,
@@ -76,7 +219,7 @@ export function TransactionRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        { backgroundColor: pressed ? theme.colors.surfaceElevated : 'transparent' },
+        { backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.surface },
       ]}
     >
       <View
@@ -142,6 +285,15 @@ export function TransactionRow({
 }
 
 const styles = StyleSheet.create({
+  swipeContainer: { overflow: 'hidden' },
+  actionPanel: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  actionPressable: { height: '100%' },
+  actionLabel: { textAlign: 'center', fontSize: 11 },
   row: layoutStyles.row,
   iconWrap: {
     width: 40,

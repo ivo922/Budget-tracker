@@ -70,7 +70,7 @@ function TransactionDayGroupRow({
   const theme = useAppTheme();
 
   return (
-    <View>
+    <View style={styles.rowWrap}>
       <TransactionRow
         transaction={item.tx}
         account={item.account}
@@ -89,5 +89,6 @@ function TransactionDayGroupRow({
 
 const styles = StyleSheet.create({
   group: { marginBottom: CARD_GAP },
-  card: { marginBottom: 0 },
+  card: { marginBottom: 0, overflow: 'hidden' },
+  rowWrap: { overflow: 'hidden' },
 });

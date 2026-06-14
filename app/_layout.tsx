@@ -1,6 +1,8 @@
+import 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PaperProvider } from 'react-native-paper';
 import { AppProvider } from '@/lib/context/AppContext';
 import { darkTheme, lightTheme, type AppTheme } from '@/lib/theme';
@@ -49,10 +51,16 @@ export default function RootLayout() {
   const theme = scheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <PaperProvider theme={theme}>
-      <AppProvider>
-        <RootNavigator />
-      </AppProvider>
-    </PaperProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <PaperProvider theme={theme}>
+        <AppProvider>
+          <RootNavigator />
+        </AppProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});
