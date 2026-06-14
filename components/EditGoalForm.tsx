@@ -4,6 +4,7 @@ import { Alert, Platform } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
 import { FormTextInput } from '@/components/FormTextInput';
 import { useApp } from '@/lib/context/AppContext';
@@ -133,9 +134,9 @@ export function EditGoalForm({ goalId, onClose, onSaved }: Props) {
       onConfirm={handleSave}
       confirmLoading={saving}
     >
-      <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+      <FormHelperText variant="labelLarge" inset={false}>
         {type === 'loan' ? 'Loan goal' : 'Savings goal'}
-      </Text>
+      </FormHelperText>
       <FormFieldGroup>
         <FormTextInput label="Name" value={name} onChangeText={setName} />
         <FormTextInput
@@ -152,9 +153,9 @@ export function EditGoalForm({ goalId, onClose, onSaved }: Props) {
           keyboardType="decimal-pad"
           left={<TextInput.Affix text="$" />}
         />
-        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14 }}>
+        <FormHelperText inset={false}>
           Money already {type === 'loan' ? 'paid' : 'saved'} before tracking started.
-        </Text>
+        </FormHelperText>
         <FormFieldButton
           label="Target date (optional)"
           value={targetDate ? targetDate.toLocaleDateString() : 'None'}
@@ -162,13 +163,13 @@ export function EditGoalForm({ goalId, onClose, onSaved }: Props) {
           icon="calendar-outline"
         />
         {targetDate ? (
-          <Text
+          <FormHelperText
             variant="labelMedium"
-            style={{ color: theme.colors.primary, paddingHorizontal: 14, paddingBottom: 8 }}
+            style={{ color: theme.colors.primary }}
             onPress={() => setTargetDate(null)}
           >
             Clear target date
-          </Text>
+          </FormHelperText>
         ) : null}
       </FormFieldGroup>
       {showDatePicker ? (

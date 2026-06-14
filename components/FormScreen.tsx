@@ -5,7 +5,7 @@ import { Button, Divider } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
-import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
+import { BORDER_RADIUS, CARD_INNER_GAP, FORM_SECTION_GAP, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { popupStyles } from '@/lib/popupStyles';
 import { useAppTheme } from '@/lib/useAppTheme';
 
@@ -65,12 +65,12 @@ export function FormScreen({
           styles.footer,
           {
             backgroundColor: theme.colors.background,
-            borderTopColor: theme.colors.outlineVariant,
+            borderTopColor: theme.colors.outline,
             paddingBottom: Math.max(insets.bottom, SCREEN_PADDING),
           },
         ]}
       >
-        <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
+        <Divider style={{ backgroundColor: theme.colors.outline }} />
         <View style={[popupStyles.actions, styles.footerActions]}>
           <Button
             mode="text"
@@ -111,7 +111,7 @@ export function FormScreen({
 
 const styles = StyleSheet.create({
   scrollContent: {
-    gap: 14,
+    gap: FORM_SECTION_GAP,
     paddingBottom: SCREEN_PADDING,
   },
   footer: {
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   footerActions: {
     paddingHorizontal: SCREEN_PADDING,
-    paddingTop: 8,
+    paddingTop: CARD_INNER_GAP,
   },
   confirmButton: {
     borderRadius: BORDER_RADIUS,

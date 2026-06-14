@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import type { GoalType } from '@/lib/db/schema';
 import { BORDER_RADIUS } from '@/lib/layout';
-import { useAppTheme } from '@/lib/useAppTheme';
+import { useAppTheme, useGoalTheme } from '@/lib/useAppTheme';
 
 type Props = {
   value: GoalType;
@@ -15,36 +15,56 @@ const OPTIONS: { value: GoalType; label: string }[] = [
   { value: 'loan', label: 'Loan' },
 ];
 
-export function GoalTypeSelector({ value, onChange }: Props) {
+function TypeOption({
+  type,
+  label,
+  selected,
+  onPress,
+}: {
+  type: GoalType;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
   const theme = useAppTheme();
+  const colors = useGoalTheme(type);
 
   return (
-    <View style={[styles.container, { borderColor: theme.colors.outline }]}>
-      {OPTIONS.map((opt) => {
-        const selected = value === opt.value;
-        const accent = opt.value === 'savings' ? theme.colors.income : theme.colors.transfer;
-        const container = opt.value === 'savings' ? theme.colors.incomeContainer : theme.colors.transferContainer;
-        const onContainer =
-          opt.value === 'savings' ? theme.colors.onIncomeContainer : theme.colors.onTransferContainer;
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.option,
+        {
+          backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
+          borderColor: selected ? theme.colors.primary : theme.colors.outline,
+        },
+      ]}
+    >
+      <Text
+        variant="labelLarge"
+        style={{
+          color: selected ? theme.colors.onPrimary : colors.main,
+          fontWeight: selected ? '700' : '500',
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
-        return (
-          <Pressable
-            key={opt.value}
-            onPress={() => onChange(opt.value)}
-            style={[
-              styles.option,
-              {
-                backgroundColor: selected ? container : 'transparent',
-                borderColor: selected ? accent : 'transparent',
-              },
-            ]}
-          >
-            <Text variant="labelLarge" style={{ color: selected ? onContainer : theme.colors.onSurfaceVariant }}>
-              {opt.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+export function GoalTypeSelector({ value, onChange }: Props) {
+  return (
+    <View style={styles.container}>
+      {OPTIONS.map((opt) => (
+        <TypeOption
+          key={opt.value}
+          type={opt.value}
+          label={opt.label}
+          selected={value === opt.value}
+          onPress={() => onChange(opt.value)}
+        />
+      ))}
     </View>
   );
 }
@@ -52,10 +72,7 @@ export function GoalTypeSelector({ value, onChange }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    borderRadius: BORDER_RADIUS,
-    borderWidth: 1,
-    padding: 4,
-    gap: 4,
+    gap: 8,
   },
   option: {
     flex: 1,

@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { IconButton, Text, TextInput } from 'react-native-paper';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
+import { FormSection } from '@/components/FormSection';
 import { FormTextInput } from '@/components/FormTextInput';
 import { useApp } from '@/lib/context/AppContext';
 import { createAccount, updateAccount } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
 import { ACCOUNT_COLORS, formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -69,25 +71,22 @@ export function AccountForm({ mode, account, onClose, onSaved, onDelete }: Props
             left={<TextInput.Affix text="$" />}
           />
         ) : account ? (
-          <View style={styles.readOnlyField}>
+          <View style={layoutStyles.formField}>
             <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
               Starting balance
             </Text>
             <Text variant="bodyLarge" style={{ fontWeight: '600' }}>
               {formatCurrency(account.initialBalance)}
             </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            <FormHelperText inset={false}>
               Adjust via transactions or delete and recreate the account.
-            </Text>
+            </FormHelperText>
           </View>
         ) : null}
       </FormFieldGroup>
 
-      <View style={[styles.colorSection, { backgroundColor: theme.colors.outlineVariant }]}>
-        <Text
-          variant="labelMedium"
-          style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14, paddingTop: 10 }}
-        >
+      <FormSection>
+        <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
           Color
         </Text>
         <View style={styles.colorRow}>
@@ -100,25 +99,15 @@ export function AccountForm({ mode, account, onClose, onSaved, onDelete }: Props
             />
           ))}
         </View>
-      </View>
+      </FormSection>
     </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  colorSection: {
-    borderRadius: BORDER_RADIUS,
-    overflow: 'hidden',
-  },
   colorRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 6,
-    paddingBottom: 4,
-  },
-  readOnlyField: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 4,
+    marginHorizontal: -6,
   },
 });

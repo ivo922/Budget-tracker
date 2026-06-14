@@ -10,6 +10,7 @@ import {
   deleteGoal,
   deleteTransaction,
 } from '@/lib/db/queries';
+import { layoutStyles } from '@/lib/layout';
 import { popupStyles } from '@/lib/popupStyles';
 import { useAppTheme, useErrorStyle } from '@/lib/useAppTheme';
 
@@ -87,7 +88,7 @@ export default function ConfirmScreen() {
       <FormFieldGroup>
         <Text
           variant="bodyLarge"
-          style={[popupStyles.message, { color: theme.colors.onSurface, padding: 14 }]}
+          style={[popupStyles.message, layoutStyles.formField, { color: theme.colors.onSurface }]}
         >
           {params.message}
         </Text>

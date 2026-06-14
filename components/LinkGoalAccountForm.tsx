@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text } from 'react-native-paper';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
 import { InlineSelect } from '@/components/InlineSelect';
 import { useApp } from '@/lib/context/AppContext';
@@ -133,9 +134,7 @@ export function LinkGoalAccountForm({ goalId, onClose, onSaved }: Props) {
       confirmLoading={saving}
     >
       <FormFieldGroup>
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14 }}>
-          {goal.name}
-        </Text>
+        <FormHelperText variant="bodyMedium">{goal.name}</FormHelperText>
         <InlineSelect
           label="Linked account"
           value={accountId}
@@ -144,11 +143,7 @@ export function LinkGoalAccountForm({ goalId, onClose, onSaved }: Props) {
           allowClear
           clearLabel="None"
         />
-        {accountId ? (
-          <Text variant="bodySmall" style={[styles.accountHelper, { color: theme.colors.onSurfaceVariant }]}>
-            {accountHelper}
-          </Text>
-        ) : null}
+        {accountId ? <FormHelperText>{accountHelper}</FormHelperText> : null}
       </FormFieldGroup>
       {error ? <Text style={errorStyle}>{error}</Text> : null}
     </FormScreen>
@@ -157,8 +152,4 @@ export function LinkGoalAccountForm({ goalId, onClose, onSaved }: Props) {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  accountHelper: {
-    paddingHorizontal: 14,
-    paddingBottom: 12,
-  },
 });

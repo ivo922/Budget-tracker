@@ -45,6 +45,12 @@ export const GROUPED_LIST_GAP = 8;
 /** Standard progress bar height. */
 export const PROGRESS_BAR_HEIGHT = 8;
 
+/** Between major form blocks (selector, field group, etc.). */
+export const FORM_SECTION_GAP = SECTION_GAP;
+
+/** Label to value gap inside a form field. */
+export const FORM_FIELD_GAP = ROW_BODY_GAP;
+
 export const screenContentStyle: ViewStyle = {
   paddingHorizontal: SCREEN_PADDING,
   paddingVertical: SCREEN_PADDING,
@@ -120,5 +126,23 @@ export const layoutStyles = StyleSheet.create({
   progressBar: {
     height: PROGRESS_BAR_HEIGHT,
     borderRadius: BORDER_RADIUS,
+  },
+  formGroup: {
+    borderRadius: BORDER_RADIUS,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 0,
+  },
+  formSection: {
+    borderRadius: BORDER_RADIUS,
+    borderWidth: 1,
+    padding: CARD_PADDING,
+    gap: CARD_INNER_GAP,
+    marginBottom: 0,
+  },
+  formField: {
+    paddingHorizontal: ROW_PADDING_H,
+    paddingVertical: ROW_PADDING_V,
+    gap: ROW_BODY_GAP,
   },
 });

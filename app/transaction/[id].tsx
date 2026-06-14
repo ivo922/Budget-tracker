@@ -2,13 +2,14 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { ActivityIndicator, Button, Text, TextInput } from 'react-native-paper';
-import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
+import { ActivityIndicator, Text, TextInput } from 'react-native-paper';
 import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormHelperText } from '@/components/FormHelperText';
+import { FormScreen } from '@/components/FormScreen';
+import { FormSection } from '@/components/FormSection';
+import { FormTextInput } from '@/components/FormTextInput';
 import { InlineSelect } from '@/components/InlineSelect';
-import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
@@ -22,7 +23,7 @@ import {
   updateTransaction,
 } from '@/lib/db/queries';
 import type { Account, Category, Goal, Transaction, TransactionType } from '@/lib/db/schema';
-import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
+import { layoutStyles } from '@/lib/layout';
 import { navigateToConfirm } from '@/lib/navigateConfirm';
 import { useErrorStyle, useAppTheme } from '@/lib/useAppTheme';
 
@@ -32,7 +33,6 @@ export default function EditTransactionScreen() {
   const { refresh } = useApp();
   const theme = useAppTheme();
   const errorStyle = useErrorStyle();
-  const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
   const [loading, setLoading] = useState(true);
   const [original, setOriginal] = useState<Transaction | null>(null);
   const [type, setType] = useState<TransactionType>('expense');
@@ -243,147 +243,123 @@ export default function EditTransactionScreen() {
   }
 
   return (
-    <View style={layoutStyles.screen}>
-      <CollapsibleScreenHeader
-        title="Edit transaction"
-        scrollY={scrollY}
-        headerHeight={headerHeight}
-        leftAction="back"
-        onLeftPress={() => router.back()}
-      />
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        contentContainerStyle={[scrollContentStyleNoFab, styles.content]}
-        keyboardShouldPersistTaps="handled"
-      >
+    <FormScreen
+      title="Edit transaction"
+      onCancel={() => router.back()}
+      onConfirm={handleSave}
+      confirmLoading={saving}
+      onSecondary={handleDelete}
+      secondaryLabel="Delete"
+      secondaryDestructive
+    >
+      <FormSection compact>
         <TransactionTypeSelector value={type} onChange={setType} />
-        <FormFieldGroup>
-          <TextInput
-            label="Amount"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            left={<TextInput.Affix text="$" />}
-          />
-          {type === 'transfer' ? (
-            <>
-              <InlineSelect
-                label="From"
-                value={fromAccountId}
-                options={accountOptions}
-                onChange={setFromAccountId}
-              />
-              <InlineSelect
-                label="To"
-                value={toAccountId}
-                options={accountOptions}
-                onChange={setToAccountId}
-              />
-            </>
-          ) : (
-            <>
-              <InlineSelect
-                label="Account"
-                value={accountId}
-                options={accountOptions}
-                onChange={setAccountId}
-              />
-              <InlineSelect
-                label="Category"
-                value={parentCategoryId}
-                options={parentCategories.map((c) => ({ value: c.id, label: c.name }))}
-                onChange={setParentCategoryId}
-              />
-              {subcategories.length > 0 ? (
-                <InlineSelect
-                  label="Subcategory"
-                  value={categoryId}
-                  options={subcategories.map((c) => ({ value: c.id, label: c.name }))}
-                  onChange={setCategoryId}
-                />
-              ) : null}
-            </>
-          )}
-
-          <FormFieldButton
-            label="Date"
-            value={date.toLocaleDateString()}
-            onPress={() => setShowDatePicker(true)}
-            icon="calendar-outline"
-          />
-
-          {type !== 'transfer' && autoLinkedGoal ? (
-            <View style={styles.goalBlock}>
-              <Text variant="labelMedium">Goal</Text>
-              <Text variant="bodyMedium">
-                Tracking: {autoLinkedGoal.name} (
-                {autoLinkedGoal.type === 'loan' ? 'Loan' : 'Savings'})
-              </Text>
-            </View>
-          ) : null}
-
-          {type === 'transfer' && autoLinkedGoal ? (
-            <View style={styles.goalBlock}>
-              <Text variant="labelMedium">Goal</Text>
-              <Text variant="bodyMedium">Tracking: {autoLinkedGoal.name} (Savings)</Text>
-            </View>
-          ) : null}
-
-          {type !== 'transfer' && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
+      </FormSection>
+      <FormFieldGroup>
+        <FormTextInput
+          label="Amount"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          left={<TextInput.Affix text="$" />}
+        />
+        {type === 'transfer' ? (
+          <>
             <InlineSelect
-              label="Goal"
-              value={goalId}
-              options={manualGoalOptions}
-              onChange={setGoalId}
-              allowClear
+              label="From"
+              value={fromAccountId}
+              options={accountOptions}
+              onChange={setFromAccountId}
             />
-          ) : null}
+            <InlineSelect
+              label="To"
+              value={toAccountId}
+              options={accountOptions}
+              onChange={setToAccountId}
+            />
+          </>
+        ) : (
+          <>
+            <InlineSelect
+              label="Account"
+              value={accountId}
+              options={accountOptions}
+              onChange={setAccountId}
+            />
+            <InlineSelect
+              label="Category"
+              value={parentCategoryId}
+              options={parentCategories.map((c) => ({ value: c.id, label: c.name }))}
+              onChange={setParentCategoryId}
+            />
+            {subcategories.length > 0 ? (
+              <InlineSelect
+                label="Subcategory"
+                value={categoryId}
+                options={subcategories.map((c) => ({ value: c.id, label: c.name }))}
+                onChange={setCategoryId}
+              />
+            ) : null}
+          </>
+        )}
 
-          {type === 'expense' && selectedLoanGoal ? (
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14 }}>
-              Each linked expense counts toward loan payoff.
+        <FormFieldButton
+          label="Date"
+          value={date.toLocaleDateString()}
+          onPress={() => setShowDatePicker(true)}
+          icon="calendar-outline"
+        />
+
+        {autoLinkedGoal ? (
+          <View style={layoutStyles.formField}>
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              Goal
             </Text>
-          ) : null}
-
-          {type === 'expense' && !goalId && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14 }}>
-              Track toward a loan? Pick a goal above.
+            <Text variant="bodyMedium">
+              Tracking: {autoLinkedGoal.name} (
+              {autoLinkedGoal.type === 'loan' ? 'Loan' : 'Savings'})
             </Text>
-          ) : null}
+          </View>
+        ) : null}
 
-          <TextInput label="Note (optional)" value={note} onChangeText={setNote} />
-        </FormFieldGroup>
-
-        {showDatePicker ? (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(_, selected) => {
-              setShowDatePicker(Platform.OS === 'ios');
-              if (selected) setDate(selected);
-            }}
+        {type !== 'transfer' && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
+          <InlineSelect
+            label="Goal"
+            value={goalId}
+            options={manualGoalOptions}
+            onChange={setGoalId}
+            allowClear
           />
         ) : null}
 
-        {error ? <Text style={errorStyle}>{error}</Text> : null}
-        <View style={styles.actions}>
-          <Button mode="outlined" textColor={theme.colors.error} onPress={handleDelete}>
-            Delete
-          </Button>
-          <Button mode="contained" onPress={handleSave} loading={saving}>
-            Save
-          </Button>
-        </View>
-      </Animated.ScrollView>
-    </View>
+        {type === 'expense' && selectedLoanGoal ? (
+          <FormHelperText>Each linked expense counts toward loan payoff.</FormHelperText>
+        ) : null}
+
+        {type === 'expense' && !goalId && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
+          <FormHelperText>Track toward a loan? Pick a goal above.</FormHelperText>
+        ) : null}
+
+        <FormTextInput label="Note (optional)" value={note} onChangeText={setNote} />
+      </FormFieldGroup>
+
+      {showDatePicker ? (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(_, selected) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (selected) setDate(selected);
+          }}
+        />
+      ) : null}
+
+      {error ? <Text style={errorStyle}>{error}</Text> : null}
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 12, paddingBottom: SCREEN_PADDING },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
-  goalBlock: { paddingHorizontal: 14, gap: 4 },
 });

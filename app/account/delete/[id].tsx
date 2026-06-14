@@ -4,7 +4,9 @@ import { StyleSheet, View } from 'react-native';
 import { ActivityIndicator, RadioButton, Text } from 'react-native-paper';
 import { EmptyState } from '@/components/EmptyState';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
+import { FormSection } from '@/components/FormSection';
 import { InlineSelect } from '@/components/InlineSelect';
 import { useApp } from '@/lib/context/AppContext';
 import {
@@ -14,7 +16,7 @@ import {
   type DeleteAccountOptions,
 } from '@/lib/db/queries';
 import { formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { CARD_INNER_GAP, layoutStyles, ROW_PADDING_H, ROW_PADDING_V } from '@/lib/layout';
 import { useAppTheme, useErrorStyle } from '@/lib/useAppTheme';
 
 type GoalHandling = 'reassign' | 'unlink' | 'delete';
@@ -133,33 +135,33 @@ export default function DeleteAccountScreen() {
       confirmLoading={saving}
       confirmDestructive
     >
-      <FormFieldGroup>
-        <View style={[styles.summaryCard, { backgroundColor: theme.colors.surfaceVariant }]}>
-          <View style={styles.accountRow}>
-            <View style={[styles.colorDot, { backgroundColor: account.color }]} />
-            <Text variant="titleMedium" style={{ fontWeight: '600' }}>
-              {account.name}
-            </Text>
-          </View>
-          <Text variant="bodyLarge" style={{ fontWeight: '600' }}>
-            {formatCurrency(preview.balance)} current balance
+      <FormSection>
+        <View style={styles.accountRow}>
+          <View style={[styles.colorDot, { backgroundColor: account.color }]} />
+          <Text variant="titleMedium" style={{ fontWeight: '600' }}>
+            {account.name}
           </Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            {preview.txCount} transaction{preview.txCount === 1 ? '' : 's'} will be permanently deleted.
-          </Text>
-          {preview.linkedGoal ? (
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              Linked savings goal: {preview.linkedGoal.name}
-            </Text>
-          ) : null}
         </View>
-
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14 }}>
-          All transactions involving this account will be permanently removed. This cannot be undone.
+        <Text variant="bodyLarge" style={{ fontWeight: '600' }}>
+          {formatCurrency(preview.balance)} current balance
         </Text>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+          {preview.txCount} transaction{preview.txCount === 1 ? '' : 's'} will be permanently deleted.
+        </Text>
+        {preview.linkedGoal ? (
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+            Linked savings goal: {preview.linkedGoal.name}
+          </Text>
+        ) : null}
+      </FormSection>
+
+      <FormFieldGroup>
+        <FormHelperText variant="bodyMedium">
+          All transactions involving this account will be permanently removed. This cannot be undone.
+        </FormHelperText>
 
         {preview.blockReason ? (
-          <Text style={errorStyle}>{preview.blockReason}</Text>
+          <Text style={[errorStyle, layoutStyles.formField]}>{preview.blockReason}</Text>
         ) : null}
 
         {hasPositiveBalance && destinationOptions.length > 0 ? (
@@ -170,15 +172,15 @@ export default function DeleteAccountScreen() {
               options={destinationOptions}
               onChange={setTransferToId}
             />
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14 }}>
+            <FormHelperText>
               Balance will be added to {transferDestName ?? 'the destination account'}'s starting
               balance. No transfer record is created.
-            </Text>
+            </FormHelperText>
           </>
         ) : null}
 
         {preview.linkedGoal ? (
-          <View style={[styles.goalSection, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.goalSection}>
             <Text variant="titleSmall" style={styles.goalTitle}>
               Linked savings goal
             </Text>
@@ -213,15 +215,10 @@ export default function DeleteAccountScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  summaryCard: {
-    padding: 14,
-    borderRadius: BORDER_RADIUS,
-    gap: 6,
-  },
   accountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: CARD_INNER_GAP,
   },
   colorDot: {
     width: 12,
@@ -229,12 +226,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   goalSection: {
-    borderRadius: BORDER_RADIUS,
-    overflow: 'hidden',
+    gap: CARD_INNER_GAP,
   },
   goalTitle: {
     fontWeight: '600',
-    paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingHorizontal: ROW_PADDING_H,
+    paddingTop: ROW_PADDING_V,
   },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text, TextInput, type TextInputProps } from 'react-native-paper';
+import { layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = Omit<TextInputProps, 'mode' | 'label'> & {
@@ -11,7 +12,7 @@ export function FormTextInput({ label, style, contentStyle, ...rest }: Props) {
   const theme = useAppTheme();
 
   return (
-    <View style={styles.field}>
+    <View style={layoutStyles.formField}>
       <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
         {label}
       </Text>
@@ -29,11 +30,6 @@ export function FormTextInput({ label, style, contentStyle, ...rest }: Props) {
 }
 
 const styles = StyleSheet.create({
-  field: {
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
   input: {
     margin: 0,
     paddingHorizontal: 0,

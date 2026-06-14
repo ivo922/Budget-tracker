@@ -1,7 +1,7 @@
 import React, { Children, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Divider } from 'react-native-paper';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -17,10 +17,10 @@ export function FormFieldGroup({ children }: Props) {
   return (
     <View
       style={[
-        styles.group,
+        layoutStyles.formGroup,
         {
-          backgroundColor: theme.colors.outlineVariant,
-          borderRadius: BORDER_RADIUS,
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outline,
         },
       ]}
     >
@@ -28,16 +28,10 @@ export function FormFieldGroup({ children }: Props) {
         <View key={index}>
           {child}
           {index < items.length - 1 ? (
-            <Divider style={{ backgroundColor: theme.colors.outline }} />
+            <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
           ) : null}
         </View>
       ))}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  group: {
-    overflow: 'hidden',
-  },
-});

@@ -4,7 +4,9 @@ import { Platform, View } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
+import { FormSection } from '@/components/FormSection';
 import { FormTextInput } from '@/components/FormTextInput';
 import { InlineSelect } from '@/components/InlineSelect';
 import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
@@ -18,6 +20,7 @@ import {
   getSubcategories,
 } from '@/lib/db/queries';
 import type { Account, Category, Goal, TransactionType } from '@/lib/db/schema';
+import { layoutStyles } from '@/lib/layout';
 import { useErrorStyle, useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -203,7 +206,9 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
       onConfirm={handleSave}
       confirmLoading={saving}
     >
-      <TransactionTypeSelector value={type} onChange={setType} />
+      <FormSection compact>
+        <TransactionTypeSelector value={type} onChange={setType} />
+      </FormSection>
 
       <FormFieldGroup>
         <FormTextInput
@@ -261,8 +266,8 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
         />
 
         {type !== 'transfer' && autoLinkedGoal ? (
-          <View>
-            <Text variant="labelMedium" style={{ marginBottom: 4 }}>
+          <View style={layoutStyles.formField}>
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
               Goal
             </Text>
             <Text variant="bodyMedium">
@@ -272,8 +277,8 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
         ) : null}
 
         {type === 'transfer' && autoLinkedGoal ? (
-          <View>
-            <Text variant="labelMedium" style={{ marginBottom: 4 }}>
+          <View style={layoutStyles.formField}>
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
               Goal
             </Text>
             <Text variant="bodyMedium">
@@ -293,15 +298,11 @@ export function AddTransactionForm({ onClose, onSaved, initialAccountId }: Props
         ) : null}
 
         {type === 'expense' && goalId && manualGoalOptions.some((o) => o.value === goalId) ? (
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14, paddingBottom: 8 }}>
-            Each linked expense counts toward loan payoff.
-          </Text>
+          <FormHelperText>Each linked expense counts toward loan payoff.</FormHelperText>
         ) : null}
 
         {type === 'expense' && !goalId && !autoLinkedGoal && manualGoalOptions.length > 0 ? (
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 14, paddingBottom: 8 }}>
-            Track toward a loan? Pick a goal above.
-          </Text>
+          <FormHelperText>Track toward a loan? Pick a goal above.</FormHelperText>
         ) : null}
 
         <FormTextInput label="Note (optional)" value={note} onChangeText={setNote} />

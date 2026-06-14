@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Text } from 'react-native-paper';
+import { layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -18,11 +19,11 @@ export function FormFieldButton({ label, value, onPress, icon = 'chevron-down' }
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.field,
+        layoutStyles.row,
         { backgroundColor: pressed ? theme.colors.surfaceElevated : 'transparent' },
       ]}
     >
-      <View style={styles.body}>
+      <View style={layoutStyles.rowBody}>
         <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
           {label}
         </Text>
@@ -35,20 +36,6 @@ export function FormFieldButton({ label, value, onPress, icon = 'chevron-down' }
   );
 }
 
-const styles = StyleSheet.create({
-  field: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  body: {
-    flex: 1,
-    gap: 4,
-    minWidth: 0,
-  },
-  value: {
-    fontWeight: '600',
-  },
-});
+const styles = {
+  value: { fontWeight: '600' as const },
+};

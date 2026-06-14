@@ -1,6 +1,6 @@
 import { useTheme } from 'react-native-paper';
-import { getTransactionColors } from './colors';
-import type { TransactionType } from './db/schema';
+import { getGoalColors, getTransactionColors } from './colors';
+import type { GoalType, TransactionType } from './db/schema';
 import type { AppTheme } from './theme';
 
 export function useAppTheme(): AppTheme {
@@ -10,6 +10,11 @@ export function useAppTheme(): AppTheme {
 export function useTransactionTheme(type: TransactionType) {
   const theme = useAppTheme();
   return getTransactionColors(type, theme.colors);
+}
+
+export function useGoalTheme(type: GoalType) {
+  const theme = useAppTheme();
+  return getGoalColors(type, theme.colors);
 }
 
 /** Shared destructive / validation error text style. */

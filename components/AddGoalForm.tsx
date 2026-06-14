@@ -1,11 +1,13 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, StyleSheet } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
+import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
+import { FormSection } from '@/components/FormSection';
 import { FormTextInput } from '@/components/FormTextInput';
 import { GoalTypeSelector } from '@/components/GoalTypeSelector';
 import { InlineSelect } from '@/components/InlineSelect';
@@ -171,7 +173,10 @@ export function AddGoalForm({ onClose, onSaved, initialType = 'savings' }: Props
       onConfirm={handleSave}
       confirmLoading={saving}
     >
-      <GoalTypeSelector value={type} onChange={setType} />
+      <FormSection compact>
+        <GoalTypeSelector value={type} onChange={setType} />
+      </FormSection>
+
       <FormFieldGroup>
         <FormTextInput label="Name" value={name} onChangeText={setName} />
         <FormTextInput
@@ -188,9 +193,9 @@ export function AddGoalForm({ onClose, onSaved, initialType = 'savings' }: Props
           keyboardType="decimal-pad"
           left={<TextInput.Affix text="$" />}
         />
-        <Text variant="bodySmall" style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+        <FormHelperText>
           Money already {type === 'loan' ? 'paid' : 'saved'} before tracking started.
-        </Text>
+        </FormHelperText>
         <FormFieldButton
           label="Target date (optional)"
           value={targetDate ? targetDate.toLocaleDateString() : 'None'}
@@ -198,13 +203,13 @@ export function AddGoalForm({ onClose, onSaved, initialType = 'savings' }: Props
           icon="calendar-outline"
         />
         {targetDate ? (
-          <Text
+          <FormHelperText
             variant="labelMedium"
-            style={{ color: theme.colors.primary, paddingHorizontal: 14, paddingBottom: 8 }}
+            style={{ color: theme.colors.primary }}
             onPress={() => setTargetDate(null)}
           >
             Clear target date
-          </Text>
+          </FormHelperText>
         ) : null}
         {type === 'savings' ? (
           <>
@@ -216,11 +221,7 @@ export function AddGoalForm({ onClose, onSaved, initialType = 'savings' }: Props
               allowClear
               clearLabel="None"
             />
-            {accountId ? (
-              <Text variant="bodySmall" style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
-                {accountHelper}
-              </Text>
-            ) : null}
+            {accountId ? <FormHelperText>{accountHelper}</FormHelperText> : null}
           </>
         ) : null}
       </FormFieldGroup>
@@ -240,10 +241,3 @@ export function AddGoalForm({ onClose, onSaved, initialType = 'savings' }: Props
     </FormScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  helper: {
-    paddingHorizontal: 14,
-    paddingBottom: 12,
-  },
-});

@@ -1,11 +1,17 @@
 import { StyleSheet } from 'react-native';
-import { SCREEN_PADDING } from '@/lib/layout';
+import {
+  FORM_SECTION_GAP,
+  ROW_GAP,
+  ROW_PADDING_H,
+  ROW_PADDING_V,
+  SCREEN_PADDING,
+} from '@/lib/layout';
 
 /** Shared layout for full-screen form views. */
 export const popupStyles = StyleSheet.create({
   content: {
     padding: SCREEN_PADDING,
-    gap: 14,
+    gap: FORM_SECTION_GAP,
   },
   heading: {
     fontWeight: '700',
@@ -26,9 +32,9 @@ export const popupStyles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    gap: ROW_GAP,
+    paddingHorizontal: ROW_PADDING_H,
+    paddingVertical: ROW_PADDING_V,
   },
   label: {
     flex: 1,

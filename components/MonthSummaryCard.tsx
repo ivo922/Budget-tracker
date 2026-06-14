@@ -2,6 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
+import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
 import { formatCurrency } from '@/lib/format';
 import {
   BORDER_RADIUS,
@@ -29,72 +30,43 @@ export function MonthSummaryCard({ period, onPeriodChange, income, expense }: Pr
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.wrap, open && styles.wrapOpen]}>
-        <Pressable
-          onPress={() => setOpen((o) => !o)}
-          style={({ pressed }) => [
-            styles.pill,
-            {
-              backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.surface,
-              borderColor: theme.colors.outline,
-            },
-          ]}
-        >
-          <Text variant="bodyLarge" style={styles.periodText}>
-            {selected?.label ?? 'This month'}
-          </Text>
-          <MaterialCommunityIcons
-            name={open ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={theme.colors.onSurfaceVariant}
-          />
-        </Pressable>
-
-        {open ? (
-          <View
-            style={[
-              styles.menu,
+      <ThemedMenu
+        visible={open}
+        onDismiss={() => setOpen(false)}
+        anchor={
+          <Pressable
+            onPress={() => setOpen(true)}
+            style={({ pressed }) => [
+              styles.pill,
               {
-                backgroundColor: theme.colors.surface,
+                backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.surface,
                 borderColor: theme.colors.outline,
               },
             ]}
           >
-            {DASHBOARD_PERIOD_OPTIONS.map((opt, index) => (
-              <View key={opt.value}>
-                {index > 0 ? (
-                  <View style={[styles.menuDivider, { backgroundColor: theme.colors.outlineVariant }]} />
-                ) : null}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.option,
-                    {
-                      backgroundColor:
-                        pressed || opt.value === period
-                          ? theme.colors.surfaceElevated
-                          : 'transparent',
-                    },
-                  ]}
-                  onPress={() => {
-                    onPeriodChange(opt.value);
-                    setOpen(false);
-                  }}
-                >
-                  <Text
-                    variant="bodyLarge"
-                    style={[
-                      styles.optionText,
-                      opt.value === period && { color: theme.colors.primary },
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        ) : null}
-      </View>
+            <Text variant="bodyLarge" style={styles.periodText}>
+              {selected?.label ?? 'This month'}
+            </Text>
+            <MaterialCommunityIcons
+              name={open ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </Pressable>
+        }
+      >
+        {DASHBOARD_PERIOD_OPTIONS.map((opt) => (
+          <ThemedMenuItem
+            key={opt.value}
+            title={opt.label}
+            titleStyle={opt.value === period ? { color: theme.colors.primary, fontWeight: '600' } : undefined}
+            onPress={() => {
+              onPeriodChange(opt.value);
+              setOpen(false);
+            }}
+          />
+        ))}
+      </ThemedMenu>
 
       <View
         style={[
@@ -123,8 +95,6 @@ const styles = StyleSheet.create({
     gap: CARD_GAP,
     marginBottom: CARD_GAP,
   },
-  wrap: { zIndex: 1 },
-  wrapOpen: { zIndex: 20 },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -136,22 +106,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   periodText: {
-    fontWeight: '600',
-  },
-  menu: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderRadius: BORDER_RADIUS,
-    overflow: 'hidden',
-  },
-  menuDivider: {
-    height: StyleSheet.hairlineWidth,
-  },
-  option: {
-    paddingHorizontal: PILL_PADDING_H,
-    paddingVertical: PILL_PADDING_V,
-  },
-  optionText: {
     fontWeight: '600',
   },
   totalsPill: {

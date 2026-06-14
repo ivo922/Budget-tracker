@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
 import { FormScreen } from '@/components/FormScreen';
+import { FormSection } from '@/components/FormSection';
 import { FormTextInput } from '@/components/FormTextInput';
 import { TransactionTypeSelector } from '@/components/TransactionTypeSelector';
 import { useApp } from '@/lib/context/AppContext';
@@ -48,11 +49,13 @@ export function AddCategoryForm({ mode, parent, onClose, onCreated }: Props) {
       confirmLoading={saving}
     >
       {mode === 'parent' ? (
-        <TransactionTypeSelector
-          value={catType}
-          onChange={(t) => setCatType(t as CategoryType)}
-          types={['expense', 'income']}
-        />
+        <FormSection compact>
+          <TransactionTypeSelector
+            value={catType}
+            onChange={(t) => setCatType(t as CategoryType)}
+            types={['expense', 'income']}
+          />
+        </FormSection>
       ) : null}
       <FormFieldGroup>
         <FormTextInput label="Name" value={name} onChangeText={setName} />

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { IconButton, ProgressBar, Text, TextInput } from 'react-native-paper';
+import { FormHelperText } from '@/components/FormHelperText';
 import { FormScreen } from '@/components/FormScreen';
 import { FormTextInput } from '@/components/FormTextInput';
 import { useApp } from '@/lib/context/AppContext';
@@ -13,9 +14,8 @@ import {
 } from '@/lib/db/queries';
 import type { Category } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
-import { BORDER_RADIUS } from '@/lib/layout';
+import { CARD_GAP, CARD_INNER_GAP, CARD_PADDING, layoutStyles, ROW_BODY_GAP } from '@/lib/layout';
 import { formatBudgetMonth, getCalendarMonthRange } from '@/lib/periods';
-import { popupStyles } from '@/lib/popupStyles';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 type Props = {
@@ -97,9 +97,9 @@ export function BudgetEditorForm({ year, month, focusCategoryId, onClose }: Prop
       confirmLoading={saving}
       scrollRef={scrollRef}
     >
-      <Text variant="bodySmall" style={[popupStyles.hint, { color: theme.colors.onSurfaceVariant }]}>
+      <FormHelperText inset={false}>
         Set planned amounts per expense category. Clear a field to remove its budget.
-      </Text>
+      </FormHelperText>
 
       <View style={styles.list}>
         {categories.map((cat) => {
@@ -202,25 +202,25 @@ export function BudgetEditorForm({ year, month, focusCategoryId, onClose }: Prop
 
 const styles = StyleSheet.create({
   list: {
-    gap: 12,
+    gap: CARD_GAP,
   },
   row: {
-    borderRadius: BORDER_RADIUS,
+    borderRadius: layoutStyles.card.borderRadius,
     borderWidth: 1,
-    padding: 14,
-    gap: 10,
+    padding: CARD_PADDING,
+    gap: CARD_INNER_GAP,
   },
   rowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: CARD_INNER_GAP,
   },
   nameWrap: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: CARD_INNER_GAP,
     minWidth: 0,
   },
   dot: {
@@ -235,13 +235,10 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: ROW_BODY_GAP,
   },
   input: {
     flex: 1,
   },
-  bar: {
-    height: 6,
-    borderRadius: BORDER_RADIUS,
-  },
+  bar: layoutStyles.progressBar,
 });

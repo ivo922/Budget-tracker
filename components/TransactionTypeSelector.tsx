@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import type { TransactionType } from '@/lib/db/schema';
 import { BORDER_RADIUS } from '@/lib/layout';
-import { useTransactionTheme } from '@/lib/useAppTheme';
+import { useAppTheme, useTransactionTheme } from '@/lib/useAppTheme';
 
 type Props = {
   value: TransactionType;
@@ -29,6 +29,7 @@ function TypeOption({
   selected: boolean;
   onPress: () => void;
 }) {
+  const theme = useAppTheme();
   const colors = useTransactionTheme(type);
 
   return (
@@ -37,14 +38,17 @@ function TypeOption({
       style={[
         styles.option,
         {
-          backgroundColor: selected ? colors.container : 'transparent',
-          borderColor: selected ? colors.main : colors.container,
+          backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
+          borderColor: selected ? theme.colors.primary : theme.colors.outline,
         },
       ]}
     >
       <Text
         variant="labelLarge"
-        style={{ color: selected ? colors.onContainer : colors.main, fontWeight: selected ? '700' : '500' }}
+        style={{
+          color: selected ? theme.colors.onPrimary : colors.main,
+          fontWeight: selected ? '700' : '500',
+        }}
       >
         {label}
       </Text>

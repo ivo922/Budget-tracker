@@ -1,4 +1,4 @@
-import type { TransactionType } from '@/lib/db/schema';
+import type { GoalType, TransactionType } from '@/lib/db/schema';
 
 export interface AppPalette {
   background: string;
@@ -114,6 +114,10 @@ export function getTransactionColors(type: TransactionType, colors: TransactionC
         onContainer: colors.onTransferContainer,
       };
   }
+}
+
+export function getGoalColors(type: GoalType, colors: TransactionColorSource) {
+  return getTransactionColors(type === 'savings' ? 'income' : 'transfer', colors);
 }
 
 /** Account picker swatches — distinct from transaction semantic colors. */
