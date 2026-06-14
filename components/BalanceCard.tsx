@@ -23,58 +23,35 @@ export function BalanceCard({
   const theme = useAppTheme();
 
   let accent = theme.colors.primary;
-  let container = theme.colors.surface;
-  let labelColor = theme.colors.onSurfaceVariant;
 
   if (variant === 'income') {
     accent = theme.colors.income;
-    container = theme.colors.incomeContainer;
-    labelColor = theme.colors.onIncomeContainer;
   } else if (variant === 'expense') {
     accent = theme.colors.expense;
-    container = theme.colors.expenseContainer;
-    labelColor = theme.colors.onExpenseContainer;
   } else if (variant === 'net') {
-    const positive = amount >= 0;
-    accent = positive ? theme.colors.income : theme.colors.expense;
-    container = positive ? theme.colors.incomeContainer : theme.colors.expenseContainer;
-    labelColor = positive ? theme.colors.onIncomeContainer : theme.colors.onExpenseContainer;
+    accent = amount >= 0 ? theme.colors.income : theme.colors.expense;
   }
 
-  if (compact) {
-    return (
-      <View
-        style={[
-          styles.compactPill,
-          fullWidth && styles.fullWidth,
-          {
-            borderColor: accent,
-            backgroundColor: 'transparent',
-          },
-        ]}
-      >
-        <Text variant="labelMedium" style={{ color: labelColor }}>
-          {label}
-        </Text>
-        <Text variant="titleMedium" style={[styles.compactAmount, { color: accent }]}>
-          {formatCurrency(amount)}
-        </Text>
-      </View>
-    );
-  }
+  const cardStyle = compact ? styles.compactPill : styles.card;
 
   return (
     <View
       style={[
-        styles.card,
+        cardStyle,
         fullWidth && styles.fullWidth,
-        { backgroundColor: container, borderLeftColor: accent },
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outline,
+        },
       ]}
     >
-      <Text variant="labelMedium" style={{ color: labelColor }}>
+      <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
         {label}
       </Text>
-      <Text variant="headlineSmall" style={[styles.amount, { color: accent }]}>
+      <Text
+        variant={compact ? 'titleMedium' : 'headlineSmall'}
+        style={[compact ? styles.compactAmount : styles.amount, { color: accent }]}
+      >
         {formatCurrency(amount)}
       </Text>
     </View>
@@ -85,7 +62,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     minWidth: 100,
-    borderLeftWidth: 4,
+    borderWidth: 1,
     borderRadius: BORDER_RADIUS,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -96,7 +73,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderRadius: BORDER_RADIUS,
     paddingHorizontal: 16,
     paddingVertical: 10,

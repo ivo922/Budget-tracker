@@ -30,7 +30,8 @@ export function MonthSummaryCard({ period, onPeriodChange, income, expense }: Pr
           style={({ pressed }) => [
             styles.pill,
             {
-              backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.outlineVariant,
+              backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.surface,
+              borderColor: theme.colors.outline,
             },
           ]}
         >
@@ -90,7 +91,16 @@ export function MonthSummaryCard({ period, onPeriodChange, income, expense }: Pr
         ) : null}
       </View>
 
-      <View style={[styles.pill, styles.totalsPill, { backgroundColor: theme.colors.outlineVariant }]}>
+      <View
+        style={[
+          styles.pill,
+          styles.totalsPill,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outline,
+          },
+        ]}
+      >
         <Text style={[styles.total, { color: theme.colors.income }]}>
           +{formatCurrency(income)}
         </Text>
@@ -114,6 +124,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderWidth: 1,
     borderRadius: BORDER_RADIUS,
     paddingHorizontal: 14,
     paddingVertical: 12,

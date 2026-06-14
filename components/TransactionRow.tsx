@@ -77,7 +77,15 @@ export function TransactionRow({
         { backgroundColor: pressed ? theme.colors.surfaceElevated : 'transparent' },
       ]}
     >
-      <View style={[styles.iconWrap, { backgroundColor: typeColors.container }]}>
+      <View
+        style={[
+          styles.iconWrap,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outline,
+          },
+        ]}
+      >
         <MaterialCommunityIcons
           name={TYPE_ICONS[transaction.type]}
           size={20}
@@ -138,6 +146,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

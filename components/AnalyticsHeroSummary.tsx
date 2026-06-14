@@ -39,7 +39,15 @@ export function AnalyticsHeroSummary({
 
       <BalanceCard label="Net" amount={net} variant="net" fullWidth />
 
-      <View style={[styles.totalsPill, { backgroundColor: theme.colors.outlineVariant }]}>
+      <View
+        style={[
+          styles.totalsPill,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outline,
+          },
+        ]}
+      >
         <Text style={[styles.total, { color: theme.colors.income }]}>
           +{formatCurrency(income)}
         </Text>
@@ -73,6 +81,7 @@ const styles = StyleSheet.create({
   totalsPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
     borderRadius: BORDER_RADIUS,
     paddingHorizontal: 14,
     paddingVertical: 12,

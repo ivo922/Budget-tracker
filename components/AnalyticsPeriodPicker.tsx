@@ -22,101 +22,105 @@ export function AnalyticsPeriodPicker({ value, onChange }: Props) {
   const theme = useAppTheme();
   const [open, setOpen] = useState(false);
   const extendedSelected = ANALYTICS_EXTENDED_PERIODS.find((o) => o.value === value);
-  const showExtendedPill = extendedSelected && !QUICK_VALUES.has(value);
+  const extendedActive = extendedSelected && !QUICK_VALUES.has(value);
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.chips}>
-        {ANALYTICS_QUICK_PERIODS.map((option) => {
-          const selected = value === option.value;
-          return (
-            <Chip
-              key={option.value}
-              selected={selected}
-              onPress={() => onChange(option.value as PeriodType)}
-              showSelectedCheck={false}
-              showSelectedOverlay={false}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
-                  borderColor: selected ? theme.colors.primary : theme.colors.outline,
-                },
-              ]}
-              textStyle={{
-                color: selected ? theme.colors.onPrimary : theme.colors.onSurface,
-                fontWeight: selected ? '600' : '400',
-              }}
-            >
-              {option.label}
-            </Chip>
-          );
-        })}
-      </View>
+      <View style={styles.row}>
+        <View style={styles.chips}>
+          {ANALYTICS_QUICK_PERIODS.map((option) => {
+            const selected = value === option.value;
+            return (
+              <Chip
+                key={option.value}
+                selected={selected}
+                onPress={() => onChange(option.value as PeriodType)}
+                showSelectedCheck={false}
+                showSelectedOverlay={false}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
+                    borderColor: selected ? theme.colors.primary : theme.colors.outline,
+                  },
+                ]}
+                textStyle={{
+                  color: selected ? theme.colors.onPrimary : theme.colors.onSurface,
+                  fontWeight: selected ? '600' : '400',
+                }}
+              >
+                {option.label}
+              </Chip>
+            );
+          })}
+        </View>
 
-      <View style={[styles.wrap, open && styles.wrapOpen]}>
-        <Pressable
-          onPress={() => setOpen((o) => !o)}
-          style={({ pressed }) => [
-            styles.pill,
-            {
-              backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.outlineVariant,
-              borderColor: showExtendedPill ? theme.colors.primary : 'transparent',
-              borderWidth: showExtendedPill ? 1 : 0,
-            },
-          ]}
-        >
-          <Text variant="bodyMedium" style={styles.pillText}>
-            {showExtendedPill ? extendedSelected?.label : 'More ranges'}
-          </Text>
-          <MaterialCommunityIcons
-            name={open ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={theme.colors.onSurfaceVariant}
-          />
-        </Pressable>
-
-        {open ? (
-          <View
-            style={[
-              styles.menu,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+        <View style={[styles.wrap, open && styles.wrapOpen]}>
+          <Pressable
+            onPress={() => setOpen((o) => !o)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              extendedActive
+                ? `More date ranges, ${extendedSelected?.label} selected`
+                : 'More date ranges'
+            }
+            style={({ pressed }) => [
+              styles.menuButton,
+              {
+                backgroundColor: pressed ? theme.colors.surfaceElevated : theme.colors.surface,
+                borderColor: extendedActive ? theme.colors.primary : theme.colors.outline,
+              },
             ]}
           >
-            {ANALYTICS_EXTENDED_PERIODS.map((opt, index) => {
-              const selected = value === opt.value;
-              return (
-                <View key={opt.value}>
-                  {index > 0 ? (
-                    <View
-                      style={[styles.menuDivider, { backgroundColor: theme.colors.outlineVariant }]}
-                    />
-                  ) : null}
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.option,
-                      {
-                        backgroundColor:
-                          pressed || selected ? theme.colors.surfaceElevated : 'transparent',
-                      },
-                    ]}
-                    onPress={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                    }}
-                  >
-                    <Text
-                      variant="bodyLarge"
-                      style={[styles.optionText, selected && { color: theme.colors.primary }]}
+            <MaterialCommunityIcons
+              name="dots-vertical"
+              size={18}
+              color={extendedActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
+            />
+          </Pressable>
+
+          {open ? (
+            <View
+              style={[
+                styles.menu,
+                { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+              ]}
+            >
+              {ANALYTICS_EXTENDED_PERIODS.map((opt, index) => {
+                const selected = value === opt.value;
+                return (
+                  <View key={opt.value}>
+                    {index > 0 ? (
+                      <View
+                        style={[styles.menuDivider, { backgroundColor: theme.colors.outlineVariant }]}
+                      />
+                    ) : null}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.option,
+                        {
+                          backgroundColor:
+                            pressed || selected ? theme.colors.surfaceElevated : 'transparent',
+                        },
+                      ]}
+                      onPress={() => {
+                        onChange(opt.value);
+                        setOpen(false);
+                      }}
                     >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
+                      <Text
+                        variant="bodyLarge"
+                        style={[styles.optionText, selected && { color: theme.colors.primary }]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -124,21 +128,35 @@ export function AnalyticsPeriodPicker({ value, onChange }: Props) {
 
 const styles = StyleSheet.create({
   wrapper: { gap: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chips: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   chip: { borderWidth: 1 },
   wrap: { zIndex: 1 },
   wrapOpen: { zIndex: 20 },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  menuButton: {
+    height: 32,
+    minWidth: 32,
+    paddingHorizontal: 8,
+    borderWidth: 1,
     borderRadius: BORDER_RADIUS,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pillText: { fontWeight: '600' },
   menu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
     marginTop: 4,
+    minWidth: 180,
     borderWidth: 1,
     borderRadius: BORDER_RADIUS,
     overflow: 'hidden',
