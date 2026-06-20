@@ -75,6 +75,13 @@ export default function BudgetOverviewScreen() {
     setMonth(next.month);
   };
 
+  const openCategoryTransactions = (focusCategoryId: string) => {
+    router.push({
+      pathname: '/transactions',
+      params: { categoryId: focusCategoryId },
+    });
+  };
+
   const openEditor = (focusCategoryId?: string) => {
     router.push({
       pathname: '/budgets/edit',
@@ -219,7 +226,7 @@ export default function BudgetOverviewScreen() {
                 key={item.categoryId}
                 item={item}
                 highlighted={categoryId === item.categoryId}
-                onPress={() => openEditor(item.categoryId)}
+                onPress={() => openCategoryTransactions(item.categoryId)}
               />
             ))}
           </View>

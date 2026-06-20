@@ -563,7 +563,9 @@ export async function getTransactions(filters: TransactionFilters = {}): Promise
   if (filters.uncategorized) {
     conditions.push(isNull(transactions.categoryId));
   } else if (filters.categoryId) {
-    conditions.push(eq(transactions.categoryId, filters.categoryId));
+    const subs = await getSubcategories(filters.categoryId);
+    const ids = [filters.categoryId, ...subs.map((c) => c.id)];
+    conditions.push(inArray(transactions.categoryId, ids));
   }
   if (filters.start) conditions.push(gte(transactions.date, filters.start));
   if (filters.end) conditions.push(lte(transactions.date, filters.end));

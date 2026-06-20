@@ -33,28 +33,32 @@ import {
   getGoals,
   getTransactions,
 } from '@/lib/db/queries';
-import type { Account } from '@/lib/db/schema';
+import type { Account, Category } from '@/lib/db/schema';
 import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
 function FiltersHeader({
   filterAccount,
+  filterCategory,
   filterType,
   filterUnpaid,
   accounts,
   menuVisible,
   setMenuVisible,
   setFilterAccount,
+  setFilterCategory,
   setFilterType,
   setFilterUnpaid,
 }: {
   filterAccount?: string;
+  filterCategory?: Category;
   filterType?: 'income' | 'expense' | 'transfer';
   filterUnpaid: boolean;
   accounts: Account[];
   menuVisible: boolean;
   setMenuVisible: (v: boolean) => void;
   setFilterAccount: (id: string | undefined) => void;
+  setFilterCategory: (category: Category | undefined) => void;
   setFilterType: (t: 'income' | 'expense' | 'transfer' | undefined) => void;
   setFilterUnpaid: (v: boolean) => void;
 }) {
@@ -62,6 +66,29 @@ function FiltersHeader({
 
   return (
     <View style={styles.filters}>
+      {filterCategory ? (
+        <Chip
+          icon="tag-outline"
+          selected
+          onPress={() => setFilterCategory(undefined)}
+          onClose={() => setFilterCategory(undefined)}
+          showSelectedCheck={false}
+          showSelectedOverlay={false}
+          style={[
+            styles.filterChip,
+            {
+              backgroundColor: theme.colors.primaryContainer,
+              borderColor: theme.colors.primary,
+            },
+          ]}
+          textStyle={{
+            color: theme.colors.primary,
+            fontWeight: '700',
+          }}
+        >
+          {filterCategory.name}
+        </Chip>
+      ) : null}
       <ThemedMenu
         visible={menuVisible}
         onDismiss={() => setMenuVisible(false)}
@@ -125,7 +152,10 @@ function FiltersHeader({
 
 export default function AllTransactionsScreen() {
   const router = useRouter();
-  const { accountId: routeAccountId } = useLocalSearchParams<{ accountId?: string }>();
+  const { accountId: routeAccountId, categoryId: routeCategoryId } = useLocalSearchParams<{
+    accountId?: string;
+    categoryId?: string;
+  }>();
   const insets = useSafeAreaInsets();
   const { ready, refreshKey } = useApp();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
@@ -136,6 +166,7 @@ export default function AllTransactionsScreen() {
   const [items, setItems] = useState<TransactionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterAccount, setFilterAccount] = useState<string | undefined>();
+  const [filterCategory, setFilterCategory] = useState<Category | undefined>();
   const [filterType, setFilterType] = useState<'income' | 'expense' | 'transfer' | undefined>();
   const [filterUnpaid, setFilterUnpaid] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -146,6 +177,7 @@ export default function AllTransactionsScreen() {
     setLoading(true);
     const [txs, goalRows] = await Promise.all([getTransactions({
       accountId: filterAccount,
+      categoryId: filterCategory?.id,
       type: filterType,
       paid: filterUnpaid ? false : undefined,
     }), getGoals()]);
@@ -165,7 +197,7 @@ export default function AllTransactionsScreen() {
     const sections = buildTransactionDaySections(enriched);
     setActiveMonth(sections[0]?.monthKey ?? null);
     setLoading(false);
-  }, [filterAccount, filterType, filterUnpaid, refreshKey]);
+  }, [filterAccount, filterCategory?.id, filterType, filterUnpaid, refreshKey]);
 
   const daySections = useMemo(() => buildTransactionDaySections(items), [items]);
 
@@ -241,18 +273,20 @@ export default function AllTransactionsScreen() {
         {showMonthIsland ? <View style={{ height: islandSpacerHeight }} /> : null}
         <FiltersHeader
           filterAccount={filterAccount}
+          filterCategory={filterCategory}
           filterType={filterType}
           filterUnpaid={filterUnpaid}
           accounts={accounts}
           menuVisible={menuVisible}
           setMenuVisible={setMenuVisible}
           setFilterAccount={setFilterAccount}
+          setFilterCategory={setFilterCategory}
           setFilterType={setFilterType}
           setFilterUnpaid={setFilterUnpaid}
         />
       </View>
     ),
-    [filterAccount, filterType, filterUnpaid, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
+    [filterAccount, filterCategory, filterType, filterUnpaid, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
   );
 
   useEffect(() => {
@@ -260,6 +294,18 @@ export default function AllTransactionsScreen() {
       setFilterAccount(routeAccountId);
     }
   }, [routeAccountId]);
+
+  useEffect(() => {
+    if (!routeCategoryId) return;
+    getCategoryById(routeCategoryId).then((category) => {
+      if (category) {
+        setFilterCategory(category);
+        if (category.type === 'expense' || category.type === 'income') {
+          setFilterType(category.type);
+        }
+      }
+    });
+  }, [routeCategoryId]);
 
   useFocusEffect(
     useCallback(() => {
