@@ -33,7 +33,9 @@ export function getDb() {
 export async function initDatabase(): Promise<void> {
   const db = getDb();
   await seedCategoriesIfNeeded(db);
-  await seedDummyDataIfNeeded(db);
+  if (__DEV__) {
+    await seedDummyDataIfNeeded(db);
+  }
 }
 
 export type AppDatabase = ReturnType<typeof getDb>;
