@@ -35,6 +35,7 @@ import {
 } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
 import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
+import { useAppTheme } from '@/lib/useAppTheme';
 
 function FiltersHeader({
   filterAccount,
@@ -57,6 +58,8 @@ function FiltersHeader({
   setFilterType: (t: 'income' | 'expense' | 'transfer' | undefined) => void;
   setFilterUnpaid: (v: boolean) => void;
 }) {
+  const theme = useAppTheme();
+
   return (
     <View style={styles.filters}>
       <ThemedMenu
@@ -97,10 +100,22 @@ function FiltersHeader({
         />
       ))}
       <Chip
-        icon="clock-outline"
+        icon={filterUnpaid ? 'checkbox-marked-circle-outline' : 'clock-outline'}
         selected={filterUnpaid}
         onPress={() => setFilterUnpaid(!filterUnpaid)}
         showSelectedCheck={false}
+        showSelectedOverlay={false}
+        style={[
+          styles.filterChip,
+          {
+            backgroundColor: filterUnpaid ? theme.colors.primaryContainer : 'transparent',
+            borderColor: filterUnpaid ? theme.colors.primary : theme.colors.outline,
+          },
+        ]}
+        textStyle={{
+          color: filterUnpaid ? theme.colors.primary : theme.colors.onSurfaceVariant,
+          fontWeight: filterUnpaid ? '700' : '500',
+        }}
       >
         Unpaid
       </Chip>
@@ -337,5 +352,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingBottom: SCREEN_PADDING,
   },
+  filterChip: { borderWidth: 1.5 },
   emptyScroll: { flexGrow: 1 },
 });
