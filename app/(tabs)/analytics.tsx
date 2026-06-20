@@ -5,9 +5,10 @@ import Animated from 'react-native-reanimated';
 import { Button, Text } from 'react-native-paper';
 import {
   AccountCarousel,
-  ADD_ACCOUNT_SLIDE_ID,
+  buildAccountSlides,
   accountFilterForSlide,
   isAddAccountSlide,
+  isAllAccountsSlide,
   type AccountSlide,
 } from '@/components/AccountCarousel';
 import { AnalyticsBreadcrumb, type BreadcrumbSegment } from '@/components/AnalyticsBreadcrumb';
@@ -25,6 +26,7 @@ import { useApp } from '@/lib/context/AppContext';
 import {
   getAccountBalance,
   getAccountById,
+  getAccountCarouselOrder,
   getAccounts,
   getBudgetVsActual,
   getCategoryById,
@@ -123,22 +125,18 @@ export default function AnalyticsScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const rows = await getAccounts();
+    const [rows, order] = await Promise.all([getAccounts(), getAccountCarouselOrder()]);
     const [total, ...balances] = await Promise.all([
       getTotalNetBalance(),
       ...rows.map((a) => getAccountBalance(a.id)),
     ]);
-    const accountSlides: AccountSlide[] = rows.map((a, i) => ({
-      id: a.id,
-      name: a.name,
-      color: a.color,
-      balance: balances[i],
-    }));
-    const nextSlides: AccountSlide[] = [
-      { id: null, name: 'All accounts', color: theme.colors.primary, balance: total },
-      ...accountSlides,
-      { id: ADD_ACCOUNT_SLIDE_ID, name: 'Add account', color: theme.colors.primary, balance: 0 },
-    ];
+    const nextSlides = buildAccountSlides({
+      accounts: rows,
+      balances,
+      total,
+      primaryColor: theme.colors.primary,
+      order,
+    });
     setSlides(nextSlides);
 
     let index = selectedIndex < nextSlides.length ? selectedIndex : 0;
@@ -334,7 +332,7 @@ export default function AnalyticsScreen() {
               router.push('/account/add');
               return;
             }
-            if (slide.id) router.push(`/account/${slide.id}`);
+            if (slide.id && !isAllAccountsSlide(slide)) router.push(`/account/${slide.id}`);
           }}
         />
 

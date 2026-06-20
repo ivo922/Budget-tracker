@@ -14,11 +14,13 @@ import {
   sum,
 } from 'drizzle-orm';
 import { getDb } from './index';
+import { ALL_ACCOUNTS_SLIDE_ID } from '@/lib/accountCarousel';
 import {
   accounts,
   budgets,
   categories,
   goals,
+  settings,
   transactions,
   type Account,
   type Budget,
@@ -177,11 +179,46 @@ export async function getAccounts(): Promise<Account[]> {
     .orderBy(asc(accounts.sortOrder), asc(accounts.name));
 }
 
-export async function reorderAccounts(orderedIds: string[]): Promise<void> {
+const ACCOUNT_CAROUSEL_ORDER_KEY = 'account_carousel_order';
+
+export async function getAccountCarouselOrder(): Promise<string[]> {
   const db = getDb();
-  for (let i = 0; i < orderedIds.length; i++) {
-    await db.update(accounts).set({ sortOrder: i }).where(eq(accounts.id, orderedIds[i]));
+  const rows = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.key, ACCOUNT_CAROUSEL_ORDER_KEY))
+    .limit(1);
+  const saved = rows[0]?.value;
+  if (!saved) {
+    const accountRows = await getAccounts();
+    return [ALL_ACCOUNTS_SLIDE_ID, ...accountRows.map((account) => account.id)];
   }
+  try {
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed.map(String) : [ALL_ACCOUNTS_SLIDE_ID];
+  } catch {
+    return [ALL_ACCOUNTS_SLIDE_ID];
+  }
+}
+
+export async function reorderAccountCarousel(orderedIds: string[]): Promise<void> {
+  const db = getDb();
+  const accountIds = orderedIds.filter((id) => id !== ALL_ACCOUNTS_SLIDE_ID);
+  await db
+    .insert(settings)
+    .values({ key: ACCOUNT_CAROUSEL_ORDER_KEY, value: JSON.stringify(orderedIds) })
+    .onConflictDoUpdate({
+      target: settings.key,
+      set: { value: JSON.stringify(orderedIds) },
+    });
+  for (let i = 0; i < accountIds.length; i++) {
+    await db.update(accounts).set({ sortOrder: i }).where(eq(accounts.id, accountIds[i]));
+  }
+}
+
+/** @deprecated use reorderAccountCarousel */
+export async function reorderAccounts(orderedIds: string[]): Promise<void> {
+  await reorderAccountCarousel([ALL_ACCOUNTS_SLIDE_ID, ...orderedIds]);
 }
 
 export async function getAccountById(id: string): Promise<Account | undefined> {

@@ -2,6 +2,7 @@ import { openDatabaseSync } from 'expo-sqlite';
 import { drizzle } from 'drizzle-orm/expo-sqlite';
 import { MIGRATION_SQL } from './migrations/init';
 import { migrateAccountSortOrder } from './migrations/accountSortOrder';
+import { migrateSettings } from './migrations/settings';
 import { migrateTransactionPaid } from './migrations/transactionPaid';
 import { seedCategoriesIfNeeded } from './seed';
 import { seedDummyDataIfNeeded } from './seedDummyData';
@@ -14,6 +15,7 @@ export function getDb() {
     const sqlite = openDatabaseSync('budget-tracker.db');
     sqlite.execSync(MIGRATION_SQL);
     migrateAccountSortOrder(sqlite);
+    migrateSettings(sqlite);
     migrateTransactionPaid(sqlite);
     dbInstance = drizzle(sqlite, { schema });
   }

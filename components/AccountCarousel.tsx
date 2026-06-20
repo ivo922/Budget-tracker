@@ -10,27 +10,29 @@ import {
   View,
 } from 'react-native';
 import { Text } from 'react-native-paper';
+import {
+  ADD_ACCOUNT_SLIDE_ID,
+  accountFilterForSlide,
+  isAddAccountSlide,
+  isAllAccountsSlide,
+  isRealAccountSlide,
+  type AccountSlide,
+} from '@/lib/accountCarousel';
 import { formatCurrency } from '@/lib/format';
 import { SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
-export const ADD_ACCOUNT_SLIDE_ID = 'add';
-
-export type AccountSlide = {
-  id: string | null;
-  name: string;
-  color: string;
-  balance: number;
-};
-
-export function isAddAccountSlide(slide: AccountSlide): boolean {
-  return slide.id === ADD_ACCOUNT_SLIDE_ID;
-}
-
-export function accountFilterForSlide(slide: AccountSlide | undefined): string | undefined {
-  if (!slide?.id || isAddAccountSlide(slide)) return undefined;
-  return slide.id;
-}
+export {
+  ADD_ACCOUNT_SLIDE_ID,
+  ALL_ACCOUNTS_SLIDE_ID,
+  accountFilterForSlide,
+  buildAccountSlides,
+  isAddAccountSlide,
+  isAllAccountsSlide,
+  isRealAccountSlide,
+  normalizeCarouselOrder,
+  type AccountSlide,
+} from '@/lib/accountCarousel';
 
 type Props = {
   slides: AccountSlide[];
@@ -73,7 +75,7 @@ export function AccountCarousel({ slides, selectedIndex, onIndexChange, onSlideP
         <Pressable
           style={[styles.slide, { width }]}
           onPress={() => onSlidePress?.(item)}
-          disabled={!onSlidePress || (item.id === null && !isAdd)}
+          disabled={!onSlidePress || isAllAccountsSlide(item)}
         >
           <View style={[styles.iconWrap, { backgroundColor: `${item.color}20` }]}>
             <MaterialCommunityIcons
@@ -81,7 +83,7 @@ export function AccountCarousel({ slides, selectedIndex, onIndexChange, onSlideP
               size={32}
               color={item.color}
             />
-            {item.id !== null && !isAdd ? (
+            {isRealAccountSlide(item) ? (
               <View
                 style={[
                   styles.colorDot,
@@ -115,7 +117,7 @@ export function AccountCarousel({ slides, selectedIndex, onIndexChange, onSlideP
       <FlatList
         ref={listRef}
         data={slides}
-        keyExtractor={(item) => item.id ?? 'all'}
+        keyExtractor={(item) => item.id ?? 'missing'}
         renderItem={renderSlide}
         horizontal
         pagingEnabled
@@ -133,7 +135,7 @@ export function AccountCarousel({ slides, selectedIndex, onIndexChange, onSlideP
         <View style={styles.dots}>
           {slides.map((slide, index) => (
             <Pressable
-              key={slide.id ?? 'all'}
+              key={slide.id ?? 'missing'}
               onPress={() => {
                 listRef.current?.scrollToIndex({ index, animated: true });
                 onIndexChange(index);

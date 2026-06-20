@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button, Text } from 'react-native-paper';
-import { AccountCarousel, ADD_ACCOUNT_SLIDE_ID, accountFilterForSlide, isAddAccountSlide, type AccountSlide } from '@/components/AccountCarousel';
+import { AccountCarousel, buildAccountSlides, accountFilterForSlide, isAddAccountSlide, isAllAccountsSlide, isRealAccountSlide, type AccountSlide } from '@/components/AccountCarousel';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { BudgetSummary } from '@/components/BudgetSummary';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
@@ -18,6 +18,7 @@ import {
   getActiveGoalsWithProgress,
   getAccountBalance,
   getAccountById,
+  getAccountCarouselOrder,
   getAccounts,
   getBudgetVsActual,
   getCategoryById,
@@ -111,22 +112,18 @@ export default function DashboardScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const rows = await getAccounts();
+    const [rows, order] = await Promise.all([getAccounts(), getAccountCarouselOrder()]);
     const [total, ...balances] = await Promise.all([
       getTotalNetBalance(),
       ...rows.map((a) => getAccountBalance(a.id)),
     ]);
-    const accountSlides: AccountSlide[] = rows.map((a, i) => ({
-      id: a.id,
-      name: a.name,
-      color: a.color,
-      balance: balances[i],
-    }));
-    const nextSlides: AccountSlide[] = [
-      { id: null, name: 'All accounts', color: theme.colors.primary, balance: total },
-      ...accountSlides,
-      { id: ADD_ACCOUNT_SLIDE_ID, name: 'Add account', color: theme.colors.primary, balance: 0 },
-    ];
+    const nextSlides = buildAccountSlides({
+      accounts: rows,
+      balances,
+      total,
+      primaryColor: theme.colors.primary,
+      order,
+    });
     setSlides(nextSlides);
 
     const safeIndex = selectedIndex < nextSlides.length ? selectedIndex : 0;
@@ -170,8 +167,8 @@ export default function DashboardScreen() {
     if (ready) load();
   }, [ready, load]);
 
-  const hasAccounts = slides.some((slide) => slide.id && !isAddAccountSlide(slide));
-  const accountCount = slides.filter((slide) => slide.id && !isAddAccountSlide(slide)).length;
+  const hasAccounts = slides.some(isRealAccountSlide);
+  const accountCount = slides.filter(isRealAccountSlide).length;
   const selectedSlide = slides[selectedIndex];
   const selectedAccountId = accountFilterForSlide(selectedSlide);
 
@@ -212,7 +209,7 @@ export default function DashboardScreen() {
               router.push('/account/add');
               return;
             }
-            if (slide.id) router.push(`/account/${slide.id}`);
+            if (slide.id && !isAllAccountsSlide(slide)) router.push(`/account/${slide.id}`);
           }}
         />
 

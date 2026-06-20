@@ -41,6 +41,11 @@ export const goals = sqliteTable('goals', {
   createdAt: integer('created_at').notNull(),
 });
 
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
+
 export const transactions = sqliteTable('transactions', {
   id: text('id').primaryKey(),
   type: text('type', { enum: ['income', 'expense', 'transfer'] }).notNull(),

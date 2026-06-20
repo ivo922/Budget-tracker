@@ -6,26 +6,50 @@ import { ActivityIndicator, IconButton, List, Text } from 'react-native-paper';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
+import {
+  ALL_ACCOUNTS_SLIDE_ID,
+  normalizeCarouselOrder,
+} from '@/lib/accountCarousel';
 import { useApp } from '@/lib/context/AppContext';
-import { getAccounts, reorderAccounts } from '@/lib/db/queries';
-import type { Account } from '@/lib/db/schema';
+import { getAccountCarouselOrder, getAccounts, reorderAccountCarousel } from '@/lib/db/queries';
 import { BORDER_RADIUS, layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
+
+type ReorderRow = {
+  id: string;
+  name: string;
+  color: string;
+};
 
 export default function ReorderAccountsScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const { ready, refresh } = useApp();
   const { scrollY, scrollHandler, headerHeight, scrollContentStyleNoFab } = useCollapsibleHeader();
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [rows, setRows] = useState<ReorderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setAccounts(await getAccounts());
+    const [accounts, order] = await Promise.all([getAccounts(), getAccountCarouselOrder()]);
+    const tokens = normalizeCarouselOrder(order, accounts);
+    const accountById = new Map(accounts.map((account) => [account.id, account]));
+    setRows(
+      tokens.map((token) => {
+        if (token === ALL_ACCOUNTS_SLIDE_ID) {
+          return {
+            id: ALL_ACCOUNTS_SLIDE_ID,
+            name: 'All accounts',
+            color: theme.colors.primary,
+          };
+        }
+        const account = accountById.get(token)!;
+        return { id: account.id, name: account.name, color: account.color };
+      }),
+    );
     setLoading(false);
-  }, []);
+  }, [theme.colors.primary]);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,18 +57,18 @@ export default function ReorderAccountsScreen() {
     }, [ready, load]),
   );
 
-  const persistOrder = async (next: Account[]) => {
-    setAccounts(next);
+  const persistOrder = async (next: ReorderRow[]) => {
+    setRows(next);
     setSaving(true);
-    await reorderAccounts(next.map((account) => account.id));
+    await reorderAccountCarousel(next.map((row) => row.id));
     refresh();
     setSaving(false);
   };
 
-  const moveAccount = (index: number, direction: -1 | 1) => {
+  const moveRow = (index: number, direction: -1 | 1) => {
     const target = index + direction;
-    if (target < 0 || target >= accounts.length) return;
-    const next = [...accounts];
+    if (target < 0 || target >= rows.length) return;
+    const next = [...rows];
     [next[index], next[target]] = [next[target], next[index]];
     void persistOrder(next);
   };
@@ -57,7 +81,7 @@ export default function ReorderAccountsScreen() {
     );
   }
 
-  if (accounts.length < 2) {
+  if (rows.length < 2) {
     return (
       <EmptyState
         title="Not enough accounts"
@@ -84,12 +108,12 @@ export default function ReorderAccountsScreen() {
           Dashboard carousel order matches this list.
         </Text>
         <View style={[styles.listCard, { backgroundColor: theme.colors.surface }]}>
-          {accounts.map((account, index) => (
+          {rows.map((row, index) => (
             <List.Item
-              key={account.id}
-              title={account.name}
+              key={row.id}
+              title={row.name}
               left={() => (
-                <View style={[styles.colorDot, { backgroundColor: account.color }]} />
+                <View style={[styles.colorDot, { backgroundColor: row.color }]} />
               )}
               right={() => (
                 <View style={styles.actions}>
@@ -97,19 +121,19 @@ export default function ReorderAccountsScreen() {
                     icon="chevron-up"
                     size={20}
                     disabled={index === 0 || saving}
-                    onPress={() => moveAccount(index, -1)}
+                    onPress={() => moveRow(index, -1)}
                   />
                   <IconButton
                     icon="chevron-down"
                     size={20}
-                    disabled={index === accounts.length - 1 || saving}
-                    onPress={() => moveAccount(index, 1)}
+                    disabled={index === rows.length - 1 || saving}
+                    onPress={() => moveRow(index, 1)}
                   />
                 </View>
               )}
               style={[
                 styles.row,
-                index < accounts.length - 1 && {
+                index < rows.length - 1 && {
                   borderBottomWidth: StyleSheet.hairlineWidth,
                   borderBottomColor: theme.colors.outlineVariant,
                 },
