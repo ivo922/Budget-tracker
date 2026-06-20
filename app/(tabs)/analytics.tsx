@@ -16,6 +16,7 @@ import { AnalyticsHeroSummary } from '@/components/AnalyticsHeroSummary';
 import { AnalyticsPeriodPicker } from '@/components/AnalyticsPeriodPicker';
 import { AnalyticsSkeleton } from '@/components/AnalyticsSkeleton';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
+import { FadeOnFocusView } from '@/components/FadeOnFocusView';
 import { EmptyState } from '@/components/EmptyState';
 import { SpendingOverview, type CategoryViewMode } from '@/components/SpendingOverview';
 import { SpendingTrendChart } from '@/components/SpendingTrendChart';
@@ -272,11 +273,16 @@ export default function AnalyticsScreen() {
         : 'Spending by category';
 
   if (!ready) {
-    return <View style={styles.center} />;
+    return (
+      <FadeOnFocusView>
+        <View style={styles.center} />
+      </FadeOnFocusView>
+    );
   }
 
   return (
-    <View style={layoutStyles.screen}>
+    <FadeOnFocusView>
+      <View style={layoutStyles.screen}>
       <CollapsibleScreenHeader title="Analytics" scrollY={scrollY} headerHeight={headerHeight} />
       <Animated.ScrollView
         onScroll={scrollHandler}
@@ -378,7 +384,8 @@ export default function AnalyticsScreen() {
           </>
         )}
       </Animated.ScrollView>
-    </View>
+      </View>
+    </FadeOnFocusView>
   );
 }
 

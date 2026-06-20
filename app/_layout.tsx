@@ -51,7 +51,7 @@ export default function RootLayout() {
   const theme = scheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <GestureHandlerRootView style={styles.root}>
+    <GestureHandlerRootView style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <PaperProvider theme={theme}>
         <AppProvider>
           <RootNavigator />

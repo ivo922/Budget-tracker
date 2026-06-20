@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button, Text } from 'react-native-paper';
 import { AccountCarousel, accountFilterForSlide, isAddAccountSlide, isAllAccountsSlide, isRealAccountSlide, type AccountSlide } from '@/components/AccountCarousel';
+import { FadeOnFocusView } from '@/components/FadeOnFocusView';
 import { ScreenLoading } from '@/components/ScreenLoading';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { BudgetSummary } from '@/components/BudgetSummary';
@@ -127,11 +128,16 @@ export default function DashboardScreen() {
   };
 
   if (!ready || (loading && slides.length === 0)) {
-    return <ScreenLoading />;
+    return (
+      <FadeOnFocusView>
+        <ScreenLoading />
+      </FadeOnFocusView>
+    );
   }
 
   return (
-    <View style={layoutStyles.screen}>
+    <FadeOnFocusView>
+      <View style={layoutStyles.screen}>
       <CollapsibleScreenHeader title="Dashboard" scrollY={scrollY} headerHeight={headerHeight} />
       <Animated.ScrollView
         onScroll={scrollHandler}
@@ -224,7 +230,8 @@ export default function DashboardScreen() {
         )}
       </Animated.ScrollView>
       <AddTransactionFab />
-    </View>
+      </View>
+    </FadeOnFocusView>
   );
 }
 

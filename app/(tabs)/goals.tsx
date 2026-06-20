@@ -4,6 +4,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button } from 'react-native-paper';
 import { AddGoalFab } from '@/components/AddGoalFab';
+import { FadeOnFocusView } from '@/components/FadeOnFocusView';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { GoalCard } from '@/components/GoalCard';
@@ -62,9 +63,11 @@ export default function GoalsScreen() {
 
   if (!ready || loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
+      <FadeOnFocusView>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" />
+        </View>
+      </FadeOnFocusView>
     );
   }
 
@@ -79,7 +82,8 @@ export default function GoalsScreen() {
   );
 
   return (
-    <View style={layoutStyles.screen}>
+    <FadeOnFocusView>
+      <View style={layoutStyles.screen}>
       <CollapsibleScreenHeader title="Goals" scrollY={scrollY} headerHeight={headerHeight} />
       {items.length === 0 ? (
         <Animated.ScrollView
@@ -131,7 +135,8 @@ export default function GoalsScreen() {
       )}
 
       <AddGoalFab />
-    </View>
+      </View>
+    </FadeOnFocusView>
   );
 }
 
