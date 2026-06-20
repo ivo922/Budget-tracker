@@ -31,6 +31,10 @@ export function SpendingTrendChart({ data, title = 'Daily spending' }: Props) {
     value: point.total,
     label: index % Math.max(1, Math.floor(data.length / 5)) === 0 ? format(parseISO(point.day), 'd') : '',
   }));
+  // ponytail: gifted-charts defaults pointerLabelWidth to 20; size from longest label
+  const pointerLabelWidth =
+    Math.max(...data.map((d) => formatCurrency(d.total).length), 6) * 7 + 16;
+  const pointerLabelHeight = 28;
 
   return (
     <View style={styles.container}>
@@ -62,8 +66,20 @@ export function SpendingTrendChart({ data, title = 'Daily spending' }: Props) {
           pointerStripColor: theme.colors.outline,
           pointerColor: theme.colors.expense,
           radius: 4,
+          pointerLabelWidth,
+          pointerLabelHeight,
+          autoAdjustPointerLabelPosition: true,
           pointerLabelComponent: (items: { value: number }[]) => (
-            <View style={[styles.tooltip, { backgroundColor: theme.colors.surface }]}>
+            <View
+              style={[
+                styles.tooltip,
+                {
+                  backgroundColor: theme.colors.surface,
+                  width: pointerLabelWidth,
+                  height: pointerLabelHeight,
+                },
+              ]}
+            >
               <Text variant="labelMedium">{formatCurrency(items[0]?.value ?? 0)}</Text>
             </View>
           ),
@@ -78,6 +94,8 @@ const styles = StyleSheet.create({
   title: { fontWeight: '600' },
   empty: { paddingVertical: 16, alignItems: 'center' },
   tooltip: {
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS,

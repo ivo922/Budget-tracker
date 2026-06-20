@@ -75,6 +75,10 @@ export function GoalContributionChart({
         ? format(parseISO(point.date), 'MMM d')
         : '',
   }));
+  // ponytail: gifted-charts defaults pointerLabelWidth to 20; size from longest label
+  const pointerLabelWidth =
+    Math.max(...filteredData.map((d) => formatCurrency(d.cumulative).length), 6) * 7 + 16;
+  const pointerLabelHeight = 28;
 
   return (
     <View style={styles.container}>
@@ -137,8 +141,20 @@ export function GoalContributionChart({
           pointerStripColor: theme.colors.outline,
           pointerColor: color,
           radius: 4,
+          pointerLabelWidth,
+          pointerLabelHeight,
+          autoAdjustPointerLabelPosition: true,
           pointerLabelComponent: (items: { value: number }[]) => (
-            <View style={[styles.tooltip, { backgroundColor: theme.colors.surface }]}>
+            <View
+              style={[
+                styles.tooltip,
+                {
+                  backgroundColor: theme.colors.surface,
+                  width: pointerLabelWidth,
+                  height: pointerLabelHeight,
+                },
+              ]}
+            >
               <Text variant="labelMedium">{formatCurrency(items[0]?.value ?? 0)}</Text>
             </View>
           ),
@@ -159,6 +175,8 @@ const styles = StyleSheet.create({
   periodChips: { flexDirection: 'row', gap: 4 },
   empty: { paddingVertical: 16, alignItems: 'center' },
   tooltip: {
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS,
