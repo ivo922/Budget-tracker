@@ -3,20 +3,24 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View, type SectionList, type SectionListData, type ViewToken } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActivityIndicator, Chip } from 'react-native-paper';
+import { ActivityIndicator } from 'react-native-paper';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { MONTH_NAV_BAR_FALLBACK_HEIGHT, MonthNavBar } from '@/components/MonthNavBar';
-import { ThemedMenu, ThemedMenuItem } from '@/components/ThemedMenu';
 import {
   buildTransactionDaySections,
   TransactionGroupedList,
-  type TransactionDaySection,
   type TransactionGroupedSection,
   type TransactionListItem,
 } from '@/components/TransactionGroupedList';
-import { TransactionTypeChip } from '@/components/TransactionTypeChip';
+import {
+  countActiveTransactionFilters,
+  EMPTY_TRANSACTION_FILTERS,
+  TransactionFiltersPanel,
+  transactionFiltersToQuery,
+  type TransactionFiltersValue,
+} from '@/components/TransactionFiltersPanel';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import { leadingSectionIndexForMonth } from '@/lib/groupTransactions';
@@ -33,122 +37,8 @@ import {
   getGoals,
   getTransactions,
 } from '@/lib/db/queries';
-import type { Account, Category } from '@/lib/db/schema';
+import type { Account } from '@/lib/db/schema';
 import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
-import { useAppTheme } from '@/lib/useAppTheme';
-
-function FiltersHeader({
-  filterAccount,
-  filterCategory,
-  filterType,
-  filterUnpaid,
-  accounts,
-  menuVisible,
-  setMenuVisible,
-  setFilterAccount,
-  setFilterCategory,
-  setFilterType,
-  setFilterUnpaid,
-}: {
-  filterAccount?: string;
-  filterCategory?: Category;
-  filterType?: 'income' | 'expense' | 'transfer';
-  filterUnpaid: boolean;
-  accounts: Account[];
-  menuVisible: boolean;
-  setMenuVisible: (v: boolean) => void;
-  setFilterAccount: (id: string | undefined) => void;
-  setFilterCategory: (category: Category | undefined) => void;
-  setFilterType: (t: 'income' | 'expense' | 'transfer' | undefined) => void;
-  setFilterUnpaid: (v: boolean) => void;
-}) {
-  const theme = useAppTheme();
-
-  return (
-    <View style={styles.filters}>
-      {filterCategory ? (
-        <Chip
-          icon="tag-outline"
-          selected
-          onPress={() => setFilterCategory(undefined)}
-          onClose={() => setFilterCategory(undefined)}
-          showSelectedCheck={false}
-          showSelectedOverlay={false}
-          style={[
-            styles.filterChip,
-            {
-              backgroundColor: theme.colors.primaryContainer,
-              borderColor: theme.colors.primary,
-            },
-          ]}
-          textStyle={{
-            color: theme.colors.primary,
-            fontWeight: '700',
-          }}
-        >
-          {filterCategory.name}
-        </Chip>
-      ) : null}
-      <ThemedMenu
-        visible={menuVisible}
-        onDismiss={() => setMenuVisible(false)}
-        anchor={
-          <Chip icon="filter" onPress={() => setMenuVisible(true)} showSelectedCheck={false}>
-            {filterAccount
-              ? accounts.find((a) => a.id === filterAccount)?.name ?? 'Account'
-              : 'All accounts'}
-          </Chip>
-        }
-      >
-        <ThemedMenuItem
-          onPress={() => {
-            setFilterAccount(undefined);
-            setMenuVisible(false);
-          }}
-          title="All accounts"
-        />
-        {accounts.map((a) => (
-          <ThemedMenuItem
-            key={a.id}
-            onPress={() => {
-              setFilterAccount(a.id);
-              setMenuVisible(false);
-            }}
-            title={a.name}
-          />
-        ))}
-      </ThemedMenu>
-      {(['income', 'expense', 'transfer'] as const).map((t) => (
-        <TransactionTypeChip
-          key={t}
-          type={t}
-          selected={filterType === t}
-          onPress={() => setFilterType(filterType === t ? undefined : t)}
-        />
-      ))}
-      <Chip
-        icon={filterUnpaid ? 'checkbox-marked-circle-outline' : 'clock-outline'}
-        selected={filterUnpaid}
-        onPress={() => setFilterUnpaid(!filterUnpaid)}
-        showSelectedCheck={false}
-        showSelectedOverlay={false}
-        style={[
-          styles.filterChip,
-          {
-            backgroundColor: filterUnpaid ? theme.colors.primaryContainer : 'transparent',
-            borderColor: filterUnpaid ? theme.colors.primary : theme.colors.outline,
-          },
-        ]}
-        textStyle={{
-          color: filterUnpaid ? theme.colors.primary : theme.colors.onSurfaceVariant,
-          fontWeight: filterUnpaid ? '700' : '500',
-        }}
-      >
-        Unpaid
-      </Chip>
-    </View>
-  );
-}
 
 export default function AllTransactionsScreen() {
   const router = useRouter();
@@ -165,22 +55,16 @@ export default function AllTransactionsScreen() {
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
   const [items, setItems] = useState<TransactionListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterAccount, setFilterAccount] = useState<string | undefined>();
-  const [filterCategory, setFilterCategory] = useState<Category | undefined>();
-  const [filterType, setFilterType] = useState<'income' | 'expense' | 'transfer' | undefined>();
-  const [filterUnpaid, setFilterUnpaid] = useState(false);
+  const [filters, setFilters] = useState<TransactionFiltersValue>(EMPTY_TRANSACTION_FILTERS);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [menuVisible, setMenuVisible] = useState(false);
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [txs, goalRows] = await Promise.all([getTransactions({
-      accountId: filterAccount,
-      categoryId: filterCategory?.id,
-      type: filterType,
-      paid: filterUnpaid ? false : undefined,
-    }), getGoals()]);
+    const [txs, goalRows] = await Promise.all([
+      getTransactions(transactionFiltersToQuery(filters)),
+      getGoals(),
+    ]);
     const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
     const enriched = await Promise.all(
       txs.map(async (tx) => ({
@@ -197,7 +81,7 @@ export default function AllTransactionsScreen() {
     const sections = buildTransactionDaySections(enriched);
     setActiveMonth(sections[0]?.monthKey ?? null);
     setLoading(false);
-  }, [filterAccount, filterCategory?.id, filterType, filterUnpaid, refreshKey]);
+  }, [filters, refreshKey]);
 
   const daySections = useMemo(() => buildTransactionDaySections(items), [items]);
 
@@ -271,39 +155,31 @@ export default function AllTransactionsScreen() {
         }}
       >
         {showMonthIsland ? <View style={{ height: islandSpacerHeight }} /> : null}
-        <FiltersHeader
-          filterAccount={filterAccount}
-          filterCategory={filterCategory}
-          filterType={filterType}
-          filterUnpaid={filterUnpaid}
-          accounts={accounts}
-          menuVisible={menuVisible}
-          setMenuVisible={setMenuVisible}
-          setFilterAccount={setFilterAccount}
-          setFilterCategory={setFilterCategory}
-          setFilterType={setFilterType}
-          setFilterUnpaid={setFilterUnpaid}
-        />
+        <View style={styles.filtersWrap}>
+          <TransactionFiltersPanel value={filters} onChange={setFilters} accounts={accounts} />
+        </View>
       </View>
     ),
-    [filterAccount, filterCategory, filterType, filterUnpaid, accounts, menuVisible, showMonthIsland, islandSpacerHeight],
+    [accounts, filters, showMonthIsland, islandSpacerHeight],
   );
 
   useEffect(() => {
     if (routeAccountId) {
-      setFilterAccount(routeAccountId);
+      setFilters((prev) => ({ ...prev, accountId: routeAccountId }));
     }
   }, [routeAccountId]);
 
   useEffect(() => {
     if (!routeCategoryId) return;
     getCategoryById(routeCategoryId).then((category) => {
-      if (category) {
-        setFilterCategory(category);
-        if (category.type === 'expense' || category.type === 'income') {
-          setFilterType(category.type);
-        }
-      }
+      if (!category) return;
+      setFilters((prev) => ({
+        ...prev,
+        category,
+        uncategorized: false,
+        type:
+          category.type === 'income' || category.type === 'expense' ? category.type : prev.type,
+      }));
     });
   }, [routeCategoryId]);
 
@@ -363,7 +239,14 @@ export default function AllTransactionsScreen() {
           contentContainerStyle={[scrollContentStyle, styles.emptyScroll]}
         >
           {listHeader}
-          <EmptyState title="No transactions" message="Tap + to add income, expenses, or transfers." />
+          <EmptyState
+            title="No transactions"
+            message={
+              countActiveTransactionFilters(filters) > 0
+                ? 'No transactions match your filters.'
+                : 'Tap + to add income, expenses, or transfers.'
+            }
+          />
         </Animated.ScrollView>
       ) : (
         <TransactionGroupedList
@@ -392,12 +275,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 10,
   },
-  filters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  filtersWrap: {
     paddingBottom: SCREEN_PADDING,
   },
-  filterChip: { borderWidth: 1.5 },
   emptyScroll: { flexGrow: 1 },
 });
