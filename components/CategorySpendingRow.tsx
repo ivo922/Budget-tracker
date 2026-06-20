@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 import { ProgressBar, Text } from 'react-native-paper';
-import { formatCurrency } from '@/lib/format';
+import { computeBudgetStatus, formatBudgetRemainingLabel } from '@/lib/budget';
+import { formatCurrency, percentOf } from '@/lib/format';
 import type { BudgetVsActualItem, CategorySpending } from '@/lib/db/queries';
 import {
   CARD_INNER_GAP,
@@ -34,10 +35,10 @@ export function CategorySpendingRow({
   onBudgetPress,
 }: Props) {
   const theme = useAppTheme();
-  const percent = total > 0 ? Math.round((item.total / total) * 100) : 0;
+  const percent = percentOf(item.total, total);
   const progress = total > 0 ? item.total / total : 0;
-  const remaining = budget ? budget.planned - budget.spent : null;
-  const overBudget = budget != null && budget.planned > 0 && budget.spent > budget.planned;
+  const budgetStatus = budget && budget.planned > 0 ? computeBudgetStatus(budget.planned, budget.spent) : null;
+  const overBudget = budgetStatus?.overBudget ?? false;
 
   const content = (
     <>
@@ -66,9 +67,7 @@ export function CategorySpendingRow({
                 fontWeight: '600',
               }}
             >
-              {overBudget
-                ? `${formatCurrency(Math.abs(remaining ?? 0))} over budget`
-                : `${formatCurrency(remaining ?? 0)} left`}
+              {formatBudgetRemainingLabel(budgetStatus!, 'short')}
             </Text>
           </Pressable>
         ) : null}

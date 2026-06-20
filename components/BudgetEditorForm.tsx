@@ -13,6 +13,7 @@ import {
   upsertBudget,
 } from '@/lib/db/queries';
 import type { Category } from '@/lib/db/schema';
+import { computeBudgetStatus, formatBudgetRemainingLabel } from '@/lib/budget';
 import { formatCurrency } from '@/lib/format';
 import { CARD_GAP, CARD_INNER_GAP, CARD_PADDING, layoutStyles, ROW_BODY_GAP } from '@/lib/layout';
 import { formatBudgetMonth, getCalendarMonthRange } from '@/lib/periods';
@@ -107,10 +108,9 @@ export function BudgetEditorForm({ year, month, focusCategoryId, onClose }: Prop
           const plannedRaw = amounts[cat.id]?.trim();
           const planned = plannedRaw ? parseFloat(plannedRaw) : 0;
           const hasPlanned = !Number.isNaN(planned) && planned > 0;
-          const remaining = hasPlanned ? planned - spent : 0;
-          const overBudget = hasPlanned && spent > planned;
-          const progress = hasPlanned ? Math.min(1, spent / planned) : 0;
-          const percent = hasPlanned ? Math.round((spent / planned) * 100) : 0;
+          const status = hasPlanned ? computeBudgetStatus(planned, spent) : null;
+          const overBudget = status?.overBudget ?? false;
+          const progress = status?.progress ?? 0;
 
           return (
             <View
@@ -174,9 +174,7 @@ export function BudgetEditorForm({ year, month, focusCategoryId, onClose }: Prop
                       color: overBudget ? theme.colors.expense : theme.colors.onSurfaceVariant,
                     }}
                   >
-                    {overBudget
-                      ? `${formatCurrency(Math.abs(remaining))} over · ${percent}%`
-                      : `${formatCurrency(remaining)} left · ${percent}%`}
+                    {formatBudgetRemainingLabel(status!)}
                   </Text>
                 </>
               ) : (

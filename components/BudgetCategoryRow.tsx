@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ProgressBar, Text } from 'react-native-paper';
+import { computeBudgetStatus, formatBudgetRemainingLabel } from '@/lib/budget';
 import { formatCurrency } from '@/lib/format';
 import type { BudgetVsActualItem } from '@/lib/db/queries';
 import {
@@ -21,10 +22,8 @@ type Props = {
 export function BudgetCategoryRow({ item, onPress, highlighted }: Props) {
   const theme = useAppTheme();
   const { planned, spent } = item;
-  const remaining = planned - spent;
-  const overBudget = planned > 0 && spent > planned;
-  const progress = planned > 0 ? Math.min(1, spent / planned) : 0;
-  const percent = planned > 0 ? Math.round((spent / planned) * 100) : 0;
+  const status = computeBudgetStatus(planned, spent);
+  const { overBudget, progress } = status;
 
   const content = (
     <>
@@ -50,9 +49,7 @@ export function BudgetCategoryRow({ item, onPress, highlighted }: Props) {
           color: overBudget ? theme.colors.expense : theme.colors.onSurfaceVariant,
         }}
       >
-        {overBudget
-          ? `${formatCurrency(Math.abs(remaining))} over · ${percent}%`
-          : `${formatCurrency(remaining)} left · ${percent}%`}
+        {formatBudgetRemainingLabel(status)}
       </Text>
     </>
   );

@@ -15,13 +15,12 @@ import {
   archiveGoal,
   getAccountBalance,
   getAccountById,
-  getCategoryById,
   getGoalContributionTimeline,
   getGoalProgress,
   getGoalStats,
   getGoalTransactions,
-  signedGoalContribution,
 } from '@/lib/db/queries';
+import { enrichTransactions } from '@/lib/enrichTransactions';
 import type { GoalProgress, GoalStats, GoalTimelinePoint } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
 import { formatCurrency } from '@/lib/format';
@@ -86,19 +85,7 @@ export default function GoalDetailScreen() {
     setTimeline(timelineData);
     setStats(goalStats);
 
-    const goalName = goalProgress.goal.name;
-    const enriched = await Promise.all(
-      txs.map(async (tx) => ({
-        tx,
-        account: tx.accountId ? await getAccountById(tx.accountId) : undefined,
-        category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
-        fromAccount: tx.fromAccountId ? await getAccountById(tx.fromAccountId) : undefined,
-        toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
-        goalName,
-        goalId: goalProgress.goal.id,
-        goalContribution: signedGoalContribution(tx, goalProgress.goal),
-      })),
-    );
+    const enriched = await enrichTransactions(txs, { goal: goalProgress.goal });
     setItems(enriched);
     setLoading(false);
   }, [id]);

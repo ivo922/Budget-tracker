@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 import { Text, useTheme } from 'react-native-paper';
+import { computeBudgetStatus, formatBudgetRemainingLabel } from '@/lib/budget';
 import { formatCurrency } from '@/lib/format';
 import type { BudgetVsActualItem, CategorySpending } from '@/lib/db/queries';
 import { BORDER_RADIUS } from '@/lib/layout';
@@ -37,14 +38,12 @@ export function SpendingChart({ data, onBarPress, budgetItems, onBudgetPress }: 
     .map((item) => {
       const budget = budgetMap.get(item.categoryId);
       if (!budget || budget.planned <= 0) return null;
-      const remaining = budget.planned - budget.spent;
-      const overBudget = budget.spent > budget.planned;
+      const status = computeBudgetStatus(budget.planned, budget.spent);
+      const detail = formatBudgetRemainingLabel(status, 'short');
       return {
         categoryId: item.categoryId,
-        label: overBudget
-          ? `${item.categoryName}: ${formatCurrency(Math.abs(remaining))} over`
-          : `${item.categoryName}: ${formatCurrency(remaining)} left`,
-        overBudget,
+        label: `${item.categoryName}: ${detail}`,
+        overBudget: status.overBudget,
       };
     })
     .filter((chip): chip is NonNullable<typeof chip> => chip !== null);

@@ -120,6 +120,9 @@ export function getGoalColors(type: GoalType, colors: TransactionColorSource) {
   return getTransactionColors(type === 'savings' ? 'income' : 'transfer', colors);
 }
 
+/** Muted text / uncategorized category dot */
+export const MUTED_GRAY = '#9AA3AD';
+
 /** Account picker swatches — distinct from transaction semantic colors. */
 export const ACCOUNT_COLORS = [
   '#6366F1',

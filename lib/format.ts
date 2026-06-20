@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import type { GoalType } from '@/lib/db/schema';
 
 export function formatCurrency(amount: number): string {
   const sign = amount < 0 ? '-' : '';
@@ -21,6 +22,14 @@ export function formatDateShort(timestamp: number): string {
 
 export function formatTransactionType(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+export function percentOf(part: number, total: number): number {
+  return total > 0 ? Math.round((part / total) * 100) : 0;
+}
+
+export function formatGoalType(type: GoalType): string {
+  return type === 'loan' ? 'Loan' : 'Savings';
 }
 
 export { ACCOUNT_COLORS } from './colors';

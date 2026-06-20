@@ -3,16 +3,9 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { GoalCard } from '@/components/GoalCard';
-import type { GoalProgress } from '@/lib/db/queries';
+import type { GoalListItem } from '@/lib/enrichGoals';
 import { CARD_GAP, SCREEN_PADDING, SECTION_GAP } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
-
-type GoalListItem = GoalProgress & {
-  linkedAccountName?: string;
-  linkedAccountBalance?: number;
-  paceLabel?: string;
-  dueLabel?: string;
-};
 
 type Props = {
   items: GoalListItem[];

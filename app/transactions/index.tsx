@@ -31,13 +31,13 @@ import {
   type ScrollableList,
 } from '@/lib/transactionListScroll';
 import {
-  getAccountById,
   getAccounts,
   getCategoryById,
   getGoals,
   getTransactions,
 } from '@/lib/db/queries';
 import type { Account } from '@/lib/db/schema';
+import { enrichTransactions } from '@/lib/enrichTransactions';
 import { layoutStyles, SCREEN_PADDING } from '@/lib/layout';
 
 export default function AllTransactionsScreen() {
@@ -66,17 +66,7 @@ export default function AllTransactionsScreen() {
       getGoals(),
     ]);
     const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
-    const enriched = await Promise.all(
-      txs.map(async (tx) => ({
-        tx,
-        account: tx.accountId ? await getAccountById(tx.accountId) : undefined,
-        category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
-        fromAccount: tx.fromAccountId ? await getAccountById(tx.fromAccountId) : undefined,
-        toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
-        goalName: tx.goalId ? goalMap.get(tx.goalId) : undefined,
-        goalId: tx.goalId ?? undefined,
-      })),
-    );
+    const enriched = await enrichTransactions(txs, { goalNames: goalMap });
     setItems(enriched);
     const sections = buildTransactionDaySections(enriched);
     setActiveMonth(sections[0]?.monthKey ?? null);

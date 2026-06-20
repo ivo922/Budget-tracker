@@ -10,23 +10,12 @@ import { GoalCard } from '@/components/GoalCard';
 import { GoalFilterBar, matchesGoalFilter, type GoalListFilter } from '@/components/GoalFilterBar';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
-import { computeGoalPace } from '@/lib/goalPace';
+import { enrichGoalListItem, type GoalListItem } from '@/lib/enrichGoals';
 import { CARD_GAP, layoutStyles } from '@/lib/layout';
 import {
-  getAccountBalance,
-  getAccountById,
-  getGoalContributionTimeline,
   getGoalsWithProgress,
 } from '@/lib/db/queries';
-import type { GoalProgress } from '@/lib/db/queries';
 import type { GoalType } from '@/lib/db/schema';
-
-type GoalListItem = GoalProgress & {
-  linkedAccountName?: string;
-  linkedAccountBalance?: number;
-  paceLabel?: string;
-  dueLabel?: string;
-};
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<GoalListItem>);
 
@@ -42,28 +31,7 @@ export default function GoalsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     const goals = await getGoalsWithProgress();
-    const enriched = await Promise.all(
-      goals.map(async (item) => {
-        const timeline = await getGoalContributionTimeline(item.goal.id);
-        const pace = computeGoalPace(item, timeline);
-        let linkedAccountName: string | undefined;
-        let linkedAccountBalance: number | undefined;
-        if (item.goal.accountId && item.goal.type === 'savings') {
-          const account = await getAccountById(item.goal.accountId);
-          if (account) {
-            linkedAccountName = account.name;
-            linkedAccountBalance = await getAccountBalance(account.id);
-          }
-        }
-        return {
-          ...item,
-          linkedAccountName,
-          linkedAccountBalance,
-          paceLabel: pace.label || undefined,
-          dueLabel: pace.dueLabel,
-        };
-      }),
-    );
+    const enriched = await Promise.all(goals.map(enrichGoalListItem));
     setItems(enriched);
     setLoading(false);
   }, []);

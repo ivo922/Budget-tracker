@@ -1,7 +1,7 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { FormDatePicker } from '@/components/FormDatePicker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { FormFieldButton } from '@/components/FormFieldButton';
 import { FormFieldGroup } from '@/components/FormFieldGroup';
@@ -225,18 +225,13 @@ export function AddGoalForm({ onClose, onSaved, initialType = 'savings' }: Props
           </>
         ) : null}
       </FormFieldGroup>
-      {showDatePicker ? (
-        <DateTimePicker
-          value={targetDate ?? new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          minimumDate={new Date()}
-          onChange={(_, selected) => {
-            setShowDatePicker(Platform.OS === 'ios');
-            if (selected) setTargetDate(selected);
-          }}
-        />
-      ) : null}
+      <FormDatePicker
+        visible={showDatePicker}
+        value={targetDate ?? new Date()}
+        minimumDate={new Date()}
+        onChange={setTargetDate}
+        onDismiss={() => setShowDatePicker(false)}
+      />
       {error ? <Text style={errorStyle}>{error}</Text> : null}
     </FormScreen>
   );

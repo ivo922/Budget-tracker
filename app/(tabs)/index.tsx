@@ -3,33 +3,29 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ActivityIndicator, Button, Text } from 'react-native-paper';
-import { AccountCarousel, buildAccountSlides, accountFilterForSlide, isAddAccountSlide, isAllAccountsSlide, isRealAccountSlide, type AccountSlide } from '@/components/AccountCarousel';
+import { AccountCarousel, accountFilterForSlide, isAddAccountSlide, isAllAccountsSlide, isRealAccountSlide, type AccountSlide } from '@/components/AccountCarousel';
+import { ScreenLoading } from '@/components/ScreenLoading';
 import { AddTransactionFab } from '@/components/AddTransactionFab';
 import { BudgetSummary } from '@/components/BudgetSummary';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { GoalsSummaryStrip } from '@/components/GoalsSummaryStrip';
 import { EmptyState } from '@/components/EmptyState';
 import { MonthSummaryCard } from '@/components/MonthSummaryCard';
-import { buildTransactionDaySections } from '@/components/TransactionGroupedList';
+import { buildTransactionDaySections, type TransactionListItem } from '@/components/TransactionGroupedList';
 import { TransactionDayGroup } from '@/components/TransactionDayGroup';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import {
   getActiveGoalsWithProgress,
-  getAccountBalance,
-  getAccountById,
-  getAccountCarouselOrder,
-  getAccounts,
   getBudgetVsActual,
-  getCategoryById,
-  getGoalContributionTimeline,
   getGoals,
   getPeriodSummary,
-  getTotalNetBalance,
   getTransactions,
   type BudgetVsActual,
 } from '@/lib/db/queries';
-import type { Account, Category, Transaction } from '@/lib/db/schema';
+import { enrichTransactions } from '@/lib/enrichTransactions';
+import { enrichGoalListItem, type GoalListItem } from '@/lib/enrichGoals';
+import { loadAccountCarouselData } from '@/hooks/useAccountCarouselSlides';
 import type { DashboardPeriod } from '@/lib/periods';
 import {
   formatBudgetMonth,
@@ -37,42 +33,10 @@ import {
   getCurrentCalendarMonth,
   getDashboardPeriodRange,
 } from '@/lib/periods';
-import { computeGoalPace } from '@/lib/goalPace';
 import { CARD_GAP, layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
 
-type EnrichedTx = {
-  tx: Transaction;
-  account?: Account;
-  category?: Category;
-  fromAccount?: Account;
-  toAccount?: Account;
-  goalName?: string;
-  goalId?: string;
-};
-
-type DashboardGoalItem = Awaited<ReturnType<typeof enrichGoalForStrip>>;
-
-async function enrichGoalForStrip(item: Awaited<ReturnType<typeof getActiveGoalsWithProgress>>[number]) {
-  const timeline = await getGoalContributionTimeline(item.goal.id);
-  const pace = computeGoalPace(item, timeline);
-  let linkedAccountName: string | undefined;
-  let linkedAccountBalance: number | undefined;
-  if (item.goal.accountId && item.goal.type === 'savings') {
-    const account = await getAccountById(item.goal.accountId);
-    if (account) {
-      linkedAccountName = account.name;
-      linkedAccountBalance = await getAccountBalance(account.id);
-    }
-  }
-  return {
-    ...item,
-    linkedAccountName,
-    linkedAccountBalance,
-    paceLabel: pace.label || undefined,
-    dueLabel: pace.dueLabel,
-  };
-}
+type DashboardGoalItem = GoalListItem;
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -81,7 +45,7 @@ export default function DashboardScreen() {
   const { scrollY, scrollHandler, headerHeight, scrollContentStyle } = useCollapsibleHeader();
   const [period, setPeriod] = useState<DashboardPeriod>('this_month');
   const [summary, setSummary] = useState({ income: 0, expense: 0 });
-  const [recent, setRecent] = useState<EnrichedTx[]>([]);
+  const [recent, setRecent] = useState<TransactionListItem[]>([]);
   const [slides, setSlides] = useState<AccountSlide[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -112,24 +76,13 @@ export default function DashboardScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [rows, order] = await Promise.all([getAccounts(), getAccountCarouselOrder()]);
-    const [total, ...balances] = await Promise.all([
-      getTotalNetBalance(),
-      ...rows.map((a) => getAccountBalance(a.id)),
-    ]);
-    const nextSlides = buildAccountSlides({
-      accounts: rows,
-      balances,
-      total,
+    const carousel = await loadAccountCarouselData({
       primaryColor: theme.colors.primary,
-      order,
+      selectedIndex,
     });
-    setSlides(nextSlides);
-
-    const safeIndex = selectedIndex < nextSlides.length ? selectedIndex : 0;
-    if (safeIndex !== selectedIndex) setSelectedIndex(safeIndex);
-
-    const accountFilter = accountFilterForSlide(nextSlides[safeIndex]);
+    setSlides(carousel.slides);
+    if (carousel.selectedIndex !== selectedIndex) setSelectedIndex(carousel.selectedIndex);
+    const accountFilter = carousel.accountFilter;
     const range = getDashboardPeriodRange(period);
     const [periodSummary, txs, budget, goalRows, goalProgressRows] = await Promise.all([
       getPeriodSummary(range.start, range.end, accountFilter),
@@ -146,19 +99,9 @@ export default function DashboardScreen() {
     const goalMap = new Map(goalRows.map((g) => [g.id, g.name]));
     setSummary(periodSummary);
     setBudgetSummary(budget);
-    const enrichedGoals = await Promise.all(goalProgressRows.map(enrichGoalForStrip));
+    const enrichedGoals = await Promise.all(goalProgressRows.map(enrichGoalListItem));
     setActiveGoals(enrichedGoals);
-    const enriched = await Promise.all(
-      txs.map(async (tx) => ({
-        tx,
-        account: tx.accountId ? await getAccountById(tx.accountId) : undefined,
-        category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
-        fromAccount: tx.fromAccountId ? await getAccountById(tx.fromAccountId) : undefined,
-        toAccount: tx.toAccountId ? await getAccountById(tx.toAccountId) : undefined,
-        goalName: tx.goalId ? goalMap.get(tx.goalId) : undefined,
-        goalId: tx.goalId ?? undefined,
-      })),
-    );
+    const enriched = await enrichTransactions(txs, { goalNames: goalMap });
     setRecent(enriched);
     setLoading(false);
   }, [budgetMonthRange.end, budgetMonthRange.start, currentMonth.month, currentMonth.year, period, refreshKey, selectedIndex, theme.colors.primary]);
@@ -184,11 +127,7 @@ export default function DashboardScreen() {
   };
 
   if (!ready || (loading && slides.length === 0)) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <ScreenLoading />;
   }
 
   return (

@@ -5,12 +5,12 @@ import Animated from 'react-native-reanimated';
 import { Button, Text } from 'react-native-paper';
 import {
   AccountCarousel,
-  buildAccountSlides,
   accountFilterForSlide,
   isAddAccountSlide,
   isAllAccountsSlide,
   type AccountSlide,
 } from '@/components/AccountCarousel';
+import { loadAccountCarouselData } from '@/hooks/useAccountCarouselSlides';
 import { AnalyticsBreadcrumb, type BreadcrumbSegment } from '@/components/AnalyticsBreadcrumb';
 import { AnalyticsHeroSummary } from '@/components/AnalyticsHeroSummary';
 import { AnalyticsPeriodPicker } from '@/components/AnalyticsPeriodPicker';
@@ -24,24 +24,19 @@ import { TransactionDayGroup } from '@/components/TransactionDayGroup';
 import { useCollapsibleHeader } from '@/hooks/useCollapsibleHeader';
 import { useApp } from '@/lib/context/AppContext';
 import {
-  getAccountBalance,
-  getAccountById,
-  getAccountCarouselOrder,
-  getAccounts,
   getBudgetVsActual,
-  getCategoryById,
   getDailyTotals,
   getIncomeByCategory,
   getPeriodSummary,
   getSpendingByCategory,
   getSubcategories,
-  getTotalNetBalance,
   getTransactions,
   UNCATEGORIZED_CATEGORY_ID,
   type BudgetVsActual,
   type CategorySpending,
 } from '@/lib/db/queries';
-import type { Account, Category, Transaction } from '@/lib/db/schema';
+import { enrichTransactions } from '@/lib/enrichTransactions';
+import type { TransactionListItem } from '@/components/TransactionGroupedList';
 import {
   formatAnalyticsPeriodSpan,
   getAnalyticsPeriodRange,
@@ -53,12 +48,6 @@ import {
 } from '@/lib/periods';
 import { CARD_GAP, layoutStyles, SECTION_GAP } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
-
-type EnrichedTx = {
-  tx: Transaction;
-  account?: Account;
-  category?: Category;
-};
 
 type DrillState =
   | { level: 'root' }
@@ -89,7 +78,7 @@ export default function AnalyticsScreen() {
   const [categories, setCategories] = useState<CategorySpending[]>([]);
   const [budgetSummary, setBudgetSummary] = useState<BudgetVsActual | null>(null);
   const [trendData, setTrendData] = useState<{ day: string; total: number }[]>([]);
-  const [transactions, setTransactions] = useState<EnrichedTx[]>([]);
+  const [transactions, setTransactions] = useState<TransactionListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const periodRange = useMemo(() => getAnalyticsPeriodRange(period), [period, refreshKey]);
@@ -125,27 +114,14 @@ export default function AnalyticsScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [rows, order] = await Promise.all([getAccounts(), getAccountCarouselOrder()]);
-    const [total, ...balances] = await Promise.all([
-      getTotalNetBalance(),
-      ...rows.map((a) => getAccountBalance(a.id)),
-    ]);
-    const nextSlides = buildAccountSlides({
-      accounts: rows,
-      balances,
-      total,
+    const carousel = await loadAccountCarouselData({
       primaryColor: theme.colors.primary,
-      order,
+      routeAccountId,
+      selectedIndex,
     });
-    setSlides(nextSlides);
-
-    let index = selectedIndex < nextSlides.length ? selectedIndex : 0;
-    if (routeAccountId) {
-      const match = nextSlides.findIndex((s) => s.id === routeAccountId);
-      if (match >= 0) index = match;
-    }
-    if (index !== selectedIndex) setSelectedIndex(index);
-    const filter = accountFilterForSlide(nextSlides[index]);
+    setSlides(carousel.slides);
+    if (carousel.selectedIndex !== selectedIndex) setSelectedIndex(carousel.selectedIndex);
+    const filter = carousel.accountFilter;
 
     const summaryPromise = getPeriodSummary(periodRange.start, periodRange.end, filter);
     const previousPromise = previousRange
@@ -172,7 +148,7 @@ export default function AnalyticsScreen() {
       trendPromise,
     ]);
 
-    let txData: EnrichedTx[] = [];
+    let txData: TransactionListItem[] = [];
     if (drill.level === 'uncategorized') {
       const txs = await getTransactions({
         type: viewMode === 'income' ? 'income' : 'expense',
@@ -181,13 +157,7 @@ export default function AnalyticsScreen() {
         end: periodRange.end,
         accountId: filter,
       });
-      txData = await Promise.all(
-        txs.map(async (tx) => ({
-          tx,
-          account: tx.accountId ? await getAccountById(tx.accountId) : undefined,
-          category: undefined,
-        })),
-      );
+      txData = await enrichTransactions(txs);
     } else if (drill.level === 'transactions') {
       const txs = await getTransactions({
         type: viewMode === 'income' ? 'income' : 'expense',
@@ -196,13 +166,7 @@ export default function AnalyticsScreen() {
         end: periodRange.end,
         accountId: filter,
       });
-      txData = await Promise.all(
-        txs.map(async (tx) => ({
-          tx,
-          account: tx.accountId ? await getAccountById(tx.accountId) : undefined,
-          category: tx.categoryId ? await getCategoryById(tx.categoryId) : undefined,
-        })),
-      );
+      txData = await enrichTransactions(txs);
     }
 
     setSummary(periodSummary);

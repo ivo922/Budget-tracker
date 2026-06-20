@@ -3,7 +3,9 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { ActivityIndicator, Button, ProgressBar, Text } from 'react-native-paper';
+import { BudgetHeroSummary } from '@/components/BudgetHeroSummary';
+import { Button, Text } from 'react-native-paper';
+import { ScreenLoading } from '@/components/ScreenLoading';
 import { BudgetCategoryRow } from '@/components/BudgetCategoryRow';
 import { CollapsibleScreenHeader } from '@/components/CollapsibleScreenHeader';
 import { EmptyState } from '@/components/EmptyState';
@@ -15,6 +17,7 @@ import {
   getParentCategories,
   type BudgetVsActual,
 } from '@/lib/db/queries';
+import { computeBudgetStatus } from '@/lib/budget';
 import { formatCurrency } from '@/lib/format';
 import { BORDER_RADIUS, CARD_GAP, CARD_PADDING, layoutStyles } from '@/lib/layout';
 import {
@@ -43,14 +46,11 @@ export default function BudgetOverviewScreen() {
   const monthLabel = formatBudgetMonth(year, month);
   const monthRange = useMemo(() => getCalendarMonthRange(year, month), [year, month]);
   const daysLeft = getDaysLeftInMonth(year, month);
-  const remaining = (summary?.totalPlanned ?? 0) - (summary?.totalSpent ?? 0);
+  const heroStatus = summary
+    ? computeBudgetStatus(summary.totalPlanned, summary.totalSpent)
+    : computeBudgetStatus(0, 0);
+  const { remaining } = heroStatus;
   const pacePerDay = daysLeft > 0 ? remaining / daysLeft : 0;
-  const overBudget =
-    (summary?.totalSpent ?? 0) > (summary?.totalPlanned ?? 0) && (summary?.totalPlanned ?? 0) > 0;
-  const progress =
-    summary && summary.totalPlanned > 0
-      ? Math.min(1, summary.totalSpent / summary.totalPlanned)
-      : 0;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,11 +105,7 @@ export default function BudgetOverviewScreen() {
   };
 
   if (!ready || loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <ScreenLoading />;
   }
 
   return (
@@ -160,28 +156,12 @@ export default function BudgetOverviewScreen() {
               { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
             ]}
           >
-            <Text variant="headlineSmall" style={styles.heroAmount}>
-              {formatCurrency(summary.totalSpent)}
-              <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
-                {' '}
-                / {formatCurrency(summary.totalPlanned)}
-              </Text>
-            </Text>
-            <Text
-              variant="bodyMedium"
-              style={{
-                color: overBudget ? theme.colors.expense : theme.colors.income,
-                fontWeight: '600',
-              }}
-            >
-              {overBudget
-                ? `${formatCurrency(Math.abs(remaining))} over budget`
-                : `${formatCurrency(remaining)} remaining`}
-            </Text>
-            <ProgressBar
-              progress={progress}
-              color={overBudget ? theme.colors.expense : theme.colors.income}
-              style={styles.heroBar}
+            <BudgetHeroSummary
+              spent={summary.totalSpent}
+              planned={summary.totalPlanned}
+              amountVariant="headlineSmall"
+              plannedVariant="bodyLarge"
+              barStyle={styles.heroBar}
             />
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
               {daysLeft > 0
@@ -245,7 +225,6 @@ export default function BudgetOverviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   monthNav: {
     flexDirection: 'row',
     alignItems: 'center',

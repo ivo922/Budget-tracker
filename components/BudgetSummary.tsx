@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Button, ProgressBar, Text } from 'react-native-paper';
-import { formatCurrency } from '@/lib/format';
+import { Button, Text } from 'react-native-paper';
+import { BudgetCategoryRow } from '@/components/BudgetCategoryRow';
+import { BudgetHeroSummary } from '@/components/BudgetHeroSummary';
 import type { BudgetVsActual } from '@/lib/db/queries';
 import { CARD_GAP, CARD_INNER_GAP, layoutStyles } from '@/lib/layout';
 import { useAppTheme } from '@/lib/useAppTheme';
-import { BudgetCategoryRow } from '@/components/BudgetCategoryRow';
 
 type Props = {
   summary: BudgetVsActual;
@@ -27,10 +27,6 @@ export function BudgetSummary({ summary, monthLabel, onPress, onEdit, onSetup }:
         .slice(0, 3),
     [items],
   );
-
-  const remaining = totalPlanned - totalSpent;
-  const progress = totalPlanned > 0 ? Math.min(1, totalSpent / totalPlanned) : 0;
-  const overBudget = totalSpent > totalPlanned && totalPlanned > 0;
 
   if (items.length === 0) {
     return (
@@ -75,31 +71,7 @@ export function BudgetSummary({ summary, monthLabel, onPress, onEdit, onSetup }:
         ) : null}
       </View>
 
-      <Text variant="headlineSmall" style={{ fontWeight: '700' }}>
-        {formatCurrency(totalSpent)}
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          {' '}
-          / {formatCurrency(totalPlanned)} planned
-        </Text>
-      </Text>
-
-      <Text
-        variant="bodyMedium"
-        style={{
-          color: overBudget ? theme.colors.expense : theme.colors.income,
-          fontWeight: '600',
-        }}
-      >
-        {overBudget
-          ? `${formatCurrency(Math.abs(remaining))} over budget`
-          : `${formatCurrency(remaining)} remaining`}
-      </Text>
-
-      <ProgressBar
-        progress={progress}
-        color={overBudget ? theme.colors.expense : theme.colors.income}
-        style={styles.bar}
-      />
+      <BudgetHeroSummary spent={totalSpent} planned={totalPlanned} />
 
       {overBudgetCount > 0 ? (
         <Text variant="bodySmall" style={{ color: theme.colors.expense }}>
@@ -138,6 +110,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: { fontWeight: '600' },
-  bar: layoutStyles.progressBar,
   rows: { gap: CARD_INNER_GAP, marginTop: CARD_INNER_GAP / 2 },
 });
