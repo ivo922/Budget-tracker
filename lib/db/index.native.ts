@@ -10,6 +10,14 @@ import * as schema from './schema';
 
 let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
+export function setTestDb(db: AppDatabase): void {
+  dbInstance = db;
+}
+
+export function resetTestDb(): void {
+  dbInstance = null;
+}
+
 export function getDb() {
   if (!dbInstance) {
     const sqlite = openDatabaseSync('budget-tracker.db');
