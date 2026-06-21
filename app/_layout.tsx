@@ -41,6 +41,7 @@ function RootNavigator() {
         <Stack.Screen name="budgets/edit" />
         <Stack.Screen name="confirm" />
         <Stack.Screen name="categories/index" />
+        <Stack.Screen name="data/index" />
       </Stack>
     </>
   );

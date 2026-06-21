@@ -104,9 +104,12 @@ export default function CategoriesScreen() {
         >
           Add category
         </Button>
+        <Button mode="outlined" onPress={() => router.push('/data')}>
+          Import / export data
+        </Button>
       </View>
     ),
-    [theme.colors.onPrimary, theme.colors.primary],
+    [theme.colors.onPrimary, theme.colors.primary, router],
   );
 
   if (!ready || loading) {
@@ -216,7 +219,7 @@ export default function CategoriesScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  addWrap: { paddingBottom: SCREEN_PADDING },
+  addWrap: { paddingBottom: SCREEN_PADDING, gap: CARD_GAP },
   parentRow: {
     borderWidth: 1,
     borderRadius: layoutStyles.card.borderRadius,
