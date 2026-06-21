@@ -10,7 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "test": "jest",
     "test:watch": "jest --watch",
-    "build:android": "eas build -p android --profile preview"
+    "build:android": "npx eas-cli build -p android --profile preview"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
